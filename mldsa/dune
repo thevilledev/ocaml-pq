@@ -1,0 +1,10 @@
+(library
+ (name mldsa)
+ (public_name mldsa)
+ (modules mldsa_keccak mldsa_engine mldsa mldsa44 mldsa65 mldsa87))
+
+(library
+ (name mldsa_for_testing)
+ (public_name mldsa.for_testing)
+ (modules mldsa_for_testing)
+ (libraries mldsa))

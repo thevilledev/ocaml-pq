@@ -1,0 +1,10 @@
+(library
+ (name mlkem)
+ (public_name mlkem)
+ (modules keccak mlkem_engine mlkem mlkem512 mlkem768 mlkem1024))
+
+(library
+ (name mlkem_for_testing)
+ (public_name mlkem.for_testing)
+ (modules mlkem_for_testing)
+ (libraries mlkem))

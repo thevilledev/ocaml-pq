@@ -1,0 +1,8 @@
+tags: [ "cryptography" "post-quantum" "org:mirage" ]
+depends: [
+  "ocaml" {>= "4.13.0"}
+  "dune" {>= "3.0"}
+  "alcotest" {with-test}
+  "odoc" {with-doc}
+]
+x-maintenance-intent: [ "(latest)" ]
