@@ -28,4 +28,5 @@ edcd66904eb718bf859b21a10a7df64ce5d03f342b43679cdc35276fadb7bc76  mldsa_nist_sig
 ```
 
 The vectors are data consumed by tests; the implementation has no dependency
-on BoringSSL.
+on BoringSSL. The complementary ML-DSA Wycheproof signing and verification
+corpus, including malformed-input cases, is documented in `../wycheproof`.

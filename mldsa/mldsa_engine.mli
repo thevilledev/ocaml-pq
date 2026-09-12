@@ -78,8 +78,17 @@ module type INTERNAL = sig
     randomness:string ->
     (signature, error) result
 
+  val sign_mu_for_testing :
+    signing_key ->
+    mu:string ->
+    randomness:string ->
+    (signature, error) result
+
   val verify_internal_for_testing :
     verification_key -> formatted_message:string -> signature -> bool
+
+  val verify_mu_for_testing :
+    verification_key -> mu:string -> signature -> bool
 end
 
 module Make (P : PARAMETERS) : INTERNAL

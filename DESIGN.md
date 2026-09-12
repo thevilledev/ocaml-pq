@@ -83,9 +83,11 @@ FORS bit convention.
 ## Verification boundary
 
 NIST ACVP key-generation and deterministic-signature outputs are checked
-byte-for-byte for all 18 KEM/signature parameter sets. ML-KEM also uses pinned
-BoringSSL and Wycheproof invalid-input and implicit-rejection corpora. Primitive
-hash known answers, malformed encodings, seed and expanded-key round trips,
+byte-for-byte for all 18 KEM/signature parameter sets. ML-KEM and ML-DSA also
+use the complete applicable Wycheproof corpus at a pinned revision; ML-KEM uses
+pinned BoringSSL invalid-input and implicit-rejection corpora as well.
+Wycheproof has no SLH-DSA vectors at the selected revision. Primitive hash
+known answers, malformed encodings, seed and expanded-key round trips,
 randomness contracts, context handling, and signature corruption are covered.
 
 CI builds on Avrea runners with OCaml 4.13, 4.14, 5.1, and 5.4. It has a

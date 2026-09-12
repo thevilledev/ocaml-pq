@@ -23,7 +23,8 @@ First release of the `mlkem`, `mldsa`, and `slhdsa` opam packages.
 - Isolate expanded ACVP and raw-message hooks in the explicitly testing-only
   `mlkem.for_testing`, `mldsa.for_testing`, and `slhdsa.for_testing` libraries.
 - Verify byte-for-byte NIST ACVP key generation and deterministic signatures
-  for every parameter set; add pinned BoringSSL and Wycheproof ML-KEM corpora,
+  for every parameter set; add all 2,863 applicable ML-KEM and ML-DSA cases
+  from a pinned Wycheproof revision, pinned BoringSSL ML-KEM corpora,
   corruption and malformed-input tests, decoder fuzzing, and hash known answers.
 - Add native, bytecode, and `js_of_ocaml` portability coverage. JavaScript CI
   exercises all ML-KEM and ML-DSA sets and representative SHA2/SHAKE SLH-DSA

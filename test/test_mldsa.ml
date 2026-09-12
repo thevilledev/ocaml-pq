@@ -38,9 +38,21 @@ module type VARIANT = sig
     randomness:string ->
     (string, error) result
 
+  val sign_mu :
+    signing_key:string ->
+    mu:string ->
+    randomness:string ->
+    (string, error) result
+
   val verify_internal :
     verification_key:string ->
     formatted_message:string ->
+    signature:string ->
+    bool
+
+  val verify_mu :
+    verification_key:string ->
+    mu:string ->
     signature:string ->
     bool
 
@@ -96,15 +108,22 @@ let read_vectors path =
   in
   loop [] []
 
-let field name vector =
+let raw_field name vector =
   match List.assoc_opt name vector with
-  | Some value -> decode_hex value
+  | Some value -> value
   | None -> failwith ("missing vector field " ^ name)
+
+let field name vector = decode_hex (raw_field name vector)
 
 let vector_path name =
   let local = Filename.concat "mldsa_vectors" name in
   if Sys.file_exists local then local
   else Filename.concat "test/mldsa_vectors" name
+
+let wycheproof_path name =
+  let local = Filename.concat "wycheproof/mldsa" name in
+  if Sys.file_exists local then local
+  else Filename.concat "test/wycheproof/mldsa" name
 
 let result_ok = function
   | Ok value -> value
@@ -149,6 +168,114 @@ let run_siggen (module M : VARIANT) path =
         true
         (M.verify_internal ~verification_key:public_key_octets
            ~formatted_message:message ~signature:expected))
+    (read_vectors path)
+
+let formatted_message context message =
+  String.make 1 '\000'
+  ^ String.make 1 (Char.unsafe_chr (String.length context))
+  ^ context ^ message
+
+let run_wycheproof_sign (module M : VARIANT) ~seed_key path =
+  let current_private = ref None in
+  let current_public = ref None in
+  List.iter
+    (fun vector ->
+      if String.equal (raw_field "group" vector) "new" then begin
+        current_private := Some (field "private_key" vector);
+        current_public := Some (field "public_key" vector)
+      end;
+      let private_key = Option.get !current_private in
+      let expected_public = Option.get !current_public in
+      let id = raw_field "id" vector in
+      let flags = raw_field "flags" vector in
+      let expected_valid = String.equal (raw_field "result" vector) "valid" in
+      let randomness =
+        match field "randomness" vector with
+        | "" -> String.make 32 '\000'
+        | value -> value
+      in
+      let signing_key =
+        if seed_key then M.signing_key_of_seed private_key
+        else M.signing_key_of_octets private_key
+      in
+      let actual =
+        match signing_key with
+        | Error _ -> None
+        | Ok signing_key ->
+            let expanded = M.signing_key_to_octets signing_key in
+            let public_key = M.verification_key_of_signing_key signing_key in
+            if expected_valid then
+              Alcotest.(check string)
+                (Format.sprintf "Wycheproof public key %s" id)
+                expected_public (M.verification_key_to_octets public_key);
+            if String.equal (raw_field "interface" vector) "internal" then
+              begin match
+                M.sign_mu ~signing_key:expanded ~mu:(field "mu" vector)
+                  ~randomness
+              with
+              | Error _ -> None
+              | Ok signature -> Some signature
+              end
+            else
+              let context = field "context" vector in
+              if String.length context > 255 then None
+              else
+                begin match
+                  M.sign_internal ~signing_key:expanded
+                    ~formatted_message:
+                      (formatted_message context (field "message" vector))
+                    ~randomness
+                with
+                | Error _ -> None
+                | Ok signature -> Some signature
+                end
+      in
+      match expected_valid, actual with
+      | false, None -> ()
+      | false, Some _ ->
+          Alcotest.failf "Wycheproof signing vector %s (%s) was accepted" id flags
+      | true, None ->
+          Alcotest.failf "Wycheproof signing vector %s (%s) was rejected" id flags
+      | true, Some actual ->
+          let expected = field "signature" vector in
+          Alcotest.(check string)
+            (Format.sprintf "Wycheproof signature %s (%s)" id flags)
+            expected actual;
+          let verified =
+            if String.equal (raw_field "interface" vector) "internal" then
+              M.verify_mu ~verification_key:expected_public ~mu:(field "mu" vector)
+                ~signature:actual
+            else
+              M.verify_internal ~verification_key:expected_public
+                ~formatted_message:
+                  (formatted_message (field "context" vector) (field "message" vector))
+                ~signature:actual
+          in
+          Alcotest.(check bool)
+            (Format.sprintf "Wycheproof generated signature %s verifies" id)
+            true verified)
+    (read_vectors path)
+
+let run_wycheproof_verify (module M : VARIANT) path =
+  let current_public = ref None in
+  List.iter
+    (fun vector ->
+      if String.equal (raw_field "group" vector) "new" then
+        current_public := Some (field "public_key" vector);
+      let public_key = Option.get !current_public in
+      let context = field "context" vector in
+      let actual =
+        if String.length context > 255 then false
+        else
+          M.verify_internal ~verification_key:public_key
+            ~formatted_message:(formatted_message context (field "message" vector))
+            ~signature:(field "signature" vector)
+      in
+      let expected = String.equal (raw_field "result" vector) "valid" in
+      Alcotest.(check bool)
+        (Format.sprintf "Wycheproof verification %s (%s)"
+           (raw_field "id" vector) (raw_field "flags" vector))
+        expected actual)
     (read_vectors path)
 
 let expect_error message = function
@@ -218,17 +345,23 @@ let () =
   let module M44 = struct
     include Mldsa.Mldsa44
     let sign_internal = Mldsa_for_testing.sign_internal_44
+    let sign_mu = Mldsa_for_testing.sign_mu_44
     let verify_internal = Mldsa_for_testing.verify_internal_44
+    let verify_mu = Mldsa_for_testing.verify_mu_44
   end in
   let module M65 = struct
     include Mldsa.Mldsa65
     let sign_internal = Mldsa_for_testing.sign_internal_65
+    let sign_mu = Mldsa_for_testing.sign_mu_65
     let verify_internal = Mldsa_for_testing.verify_internal_65
+    let verify_mu = Mldsa_for_testing.verify_mu_65
   end in
   let module M87 = struct
     include Mldsa.Mldsa87
     let sign_internal = Mldsa_for_testing.sign_internal_87
+    let sign_mu = Mldsa_for_testing.sign_mu_87
     let verify_internal = Mldsa_for_testing.verify_internal_87
+    let verify_mu = Mldsa_for_testing.verify_mu_87
   end in
   Alcotest.run "ML-DSA"
     [ ( "ML-DSA-44",
@@ -238,6 +371,15 @@ let () =
           Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
               run_siggen (module M44)
                 (vector_path "mldsa_nist_siggen_44_tests.txt"));
+          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+              run_wycheproof_sign (module M44) ~seed_key:true
+                (wycheproof_path "mldsa_44_sign_seed_test.txt"));
+          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+              run_wycheproof_sign (module M44) ~seed_key:false
+                (wycheproof_path "mldsa_44_sign_noseed_test.txt"));
+          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+              run_wycheproof_verify (module M44)
+                (wycheproof_path "mldsa_44_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M44)) ] );
       ( "ML-DSA-65",
@@ -247,6 +389,15 @@ let () =
           Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
               run_siggen (module M65)
                 (vector_path "mldsa_nist_siggen_65_tests.txt"));
+          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+              run_wycheproof_sign (module M65) ~seed_key:true
+                (wycheproof_path "mldsa_65_sign_seed_test.txt"));
+          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+              run_wycheproof_sign (module M65) ~seed_key:false
+                (wycheproof_path "mldsa_65_sign_noseed_test.txt"));
+          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+              run_wycheproof_verify (module M65)
+                (wycheproof_path "mldsa_65_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M65)) ] );
       ( "ML-DSA-87",
@@ -256,5 +407,14 @@ let () =
           Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
               run_siggen (module M87)
                 (vector_path "mldsa_nist_siggen_87_tests.txt"));
+          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+              run_wycheproof_sign (module M87) ~seed_key:true
+                (wycheproof_path "mldsa_87_sign_seed_test.txt"));
+          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+              run_wycheproof_sign (module M87) ~seed_key:false
+                (wycheproof_path "mldsa_87_sign_noseed_test.txt"));
+          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+              run_wycheproof_verify (module M87)
+                (wycheproof_path "mldsa_87_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M87)) ] ) ]

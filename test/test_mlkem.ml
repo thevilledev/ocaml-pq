@@ -54,6 +54,11 @@ let vector_path name =
   let local = Filename.concat "vectors" name in
   if Sys.file_exists local then local else Filename.concat "test/vectors" name
 
+let wycheproof_path name =
+  let local = Filename.concat "wycheproof/mlkem" name in
+  if Sys.file_exists local then local
+  else Filename.concat "test/wycheproof/mlkem" name
+
 let require_ok label = function
   | Ok value -> value
   | Error error -> Alcotest.failf "%s: %a" label E.pp_error error
@@ -263,6 +268,185 @@ let test_decapsulation_vectors_1024 () =
           end
       | result -> Alcotest.failf "ML-KEM-1024 decapsulation %d has result %S" index result)
 
+module type WYCHEPROOF_VARIANT = sig
+  val keygen : seed:string -> ((string * string), unit) result
+  val encapsulate :
+    public_key:string -> randomness:string -> ((string * string), unit) result
+  val decapsulate_expanded :
+    private_key:string -> ciphertext:string -> (string, unit) result
+  val decapsulate_seed :
+    seed:string -> ciphertext:string -> ((string * string), unit) result
+end
+
+let without_error result = Result.map_error (fun _ -> ()) result
+
+module W512 : WYCHEPROOF_VARIANT = struct
+  let keygen ~seed =
+    if String.length seed <> 64 then Error ()
+    else
+      T.keygen_512 ~d:(String.sub seed 0 32) ~z:(String.sub seed 32 32)
+      |> without_error
+
+  let encapsulate ~public_key ~randomness =
+    T.encapsulate_512 ~encapsulation_key:public_key ~randomness
+    |> without_error
+
+  let decapsulate_expanded ~private_key ~ciphertext =
+    T.decapsulate_512 ~expanded_decapsulation_key:private_key ~ciphertext
+    |> without_error
+
+  let decapsulate_seed ~seed ~ciphertext =
+    match E512.decapsulation_key_of_seed seed,
+          E512.ciphertext_of_octets ciphertext with
+    | Ok private_key, Ok ciphertext ->
+        let public_key = E512.encapsulation_key_of_decapsulation_key private_key in
+        let shared_secret = E512.decapsulate private_key ciphertext in
+        Ok (E512.encapsulation_key_to_octets public_key,
+            E512.shared_secret_to_octets shared_secret)
+    | Error _, _ | _, Error _ -> Error ()
+end
+
+module W768 : WYCHEPROOF_VARIANT = struct
+  let keygen ~seed =
+    if String.length seed <> 64 then Error ()
+    else
+      T.keygen_768 ~d:(String.sub seed 0 32) ~z:(String.sub seed 32 32)
+      |> without_error
+
+  let encapsulate ~public_key ~randomness =
+    T.encapsulate_768 ~encapsulation_key:public_key ~randomness
+    |> without_error
+
+  let decapsulate_expanded ~private_key ~ciphertext =
+    T.decapsulate_768 ~expanded_decapsulation_key:private_key ~ciphertext
+    |> without_error
+
+  let decapsulate_seed ~seed ~ciphertext =
+    match E768.decapsulation_key_of_seed seed,
+          E768.ciphertext_of_octets ciphertext with
+    | Ok private_key, Ok ciphertext ->
+        let public_key = E768.encapsulation_key_of_decapsulation_key private_key in
+        let shared_secret = E768.decapsulate private_key ciphertext in
+        Ok (E768.encapsulation_key_to_octets public_key,
+            E768.shared_secret_to_octets shared_secret)
+    | Error _, _ | _, Error _ -> Error ()
+end
+
+module W1024 : WYCHEPROOF_VARIANT = struct
+  let keygen ~seed =
+    if String.length seed <> 64 then Error ()
+    else
+      T.keygen_1024 ~d:(String.sub seed 0 32) ~z:(String.sub seed 32 32)
+      |> without_error
+
+  let encapsulate ~public_key ~randomness =
+    T.encapsulate_1024 ~encapsulation_key:public_key ~randomness
+    |> without_error
+
+  let decapsulate_expanded ~private_key ~ciphertext =
+    T.decapsulate_1024 ~expanded_decapsulation_key:private_key ~ciphertext
+    |> without_error
+
+  let decapsulate_seed ~seed ~ciphertext =
+    match E1024.decapsulation_key_of_seed seed,
+          E1024.ciphertext_of_octets ciphertext with
+    | Ok private_key, Ok ciphertext ->
+        let public_key = E1024.encapsulation_key_of_decapsulation_key private_key in
+        let shared_secret = E1024.decapsulate private_key ciphertext in
+        Ok (E1024.encapsulation_key_to_octets public_key,
+            E1024.shared_secret_to_octets shared_secret)
+    | Error _, _ | _, Error _ -> Error ()
+end
+
+let wycheproof_id vector =
+  let flags = Option.value ~default:"" (List.assoc_opt "flags" vector) in
+  Format.sprintf "%s (%s)" (field "id" vector) flags
+
+let is_valid vector = String.equal (field "result" vector) "valid"
+
+let run_wycheproof_keygen (module M : WYCHEPROOF_VARIANT) path =
+  read_blocks path
+  |> List.iter (fun vector ->
+      let id = wycheproof_id vector in
+      match is_valid vector, M.keygen ~seed:(decode_hex (field "seed" vector)) with
+      | true, Ok (private_key, public_key) ->
+          check_bytes ("Wycheproof private key " ^ id)
+            (decode_hex (field "private_key" vector)) private_key;
+          check_bytes ("Wycheproof public key " ^ id)
+            (decode_hex (field "public_key" vector)) public_key
+      | false, Error () -> ()
+      | true, Error () -> Alcotest.failf "Wycheproof keygen %s was rejected" id
+      | false, Ok _ -> Alcotest.failf "Wycheproof keygen %s was accepted" id)
+
+let run_wycheproof_encapsulation (module M : WYCHEPROOF_VARIANT) path =
+  read_blocks path
+  |> List.iter (fun vector ->
+      let id = wycheproof_id vector in
+      let actual =
+        M.encapsulate
+          ~public_key:(decode_hex (field "public_key" vector))
+          ~randomness:(decode_hex (field "randomness" vector))
+      in
+      match is_valid vector, actual with
+      | true, Ok (ciphertext, shared_secret) ->
+          check_bytes ("Wycheproof ciphertext " ^ id)
+            (decode_hex (field "ciphertext" vector)) ciphertext;
+          check_bytes ("Wycheproof shared secret " ^ id)
+            (decode_hex (field "shared_secret" vector)) shared_secret
+      | false, Error () -> ()
+      | true, Error () -> Alcotest.failf "Wycheproof encapsulation %s was rejected" id
+      | false, Ok _ ->
+          Alcotest.failf "Wycheproof encapsulation %s was accepted" id)
+
+let run_wycheproof_expanded_decapsulation
+    (module M : WYCHEPROOF_VARIANT) path =
+  read_blocks path
+  |> List.iter (fun vector ->
+      let id = wycheproof_id vector in
+      let actual =
+        M.decapsulate_expanded
+          ~private_key:(decode_hex (field "private_key" vector))
+          ~ciphertext:(decode_hex (field "ciphertext" vector))
+      in
+      match is_valid vector, actual with
+      | true, Ok shared_secret ->
+          check_bytes ("Wycheproof shared secret " ^ id)
+            (decode_hex (field "shared_secret" vector)) shared_secret
+      | false, Error () -> ()
+      | true, Error () ->
+          Alcotest.failf "Wycheproof expanded decapsulation %s was rejected" id
+      | false, Ok _ ->
+          Alcotest.failf "Wycheproof expanded decapsulation %s was accepted" id)
+
+let run_wycheproof_seed_decapsulation (module M : WYCHEPROOF_VARIANT) path =
+  read_blocks path
+  |> List.iter (fun vector ->
+      let id = wycheproof_id vector in
+      let actual =
+        M.decapsulate_seed
+          ~seed:(decode_hex (field "seed" vector))
+          ~ciphertext:(decode_hex (field "ciphertext" vector))
+      in
+      match is_valid vector, actual with
+      | true, Ok (public_key, shared_secret) ->
+          check_bytes ("Wycheproof public key " ^ id)
+            (decode_hex (field "public_key" vector)) public_key;
+          check_bytes ("Wycheproof shared secret " ^ id)
+            (decode_hex (field "shared_secret" vector)) shared_secret
+      | false, Error () -> ()
+      | true, Error () ->
+          Alcotest.failf "Wycheproof seed decapsulation %s was rejected" id
+      | false, Ok _ ->
+          Alcotest.failf "Wycheproof seed decapsulation %s was accepted" id)
+
+let run_wycheproof parameter (module M : WYCHEPROOF_VARIANT) =
+  let path suffix = wycheproof_path ("mlkem_" ^ parameter ^ suffix) in
+  run_wycheproof_keygen (module M) (path "_keygen_seed_test.txt");
+  run_wycheproof_encapsulation (module M) (path "_encaps_test.txt");
+  run_wycheproof_expanded_decapsulation (module M)
+    (path "_semi_expanded_decaps_test.txt");
+  run_wycheproof_seed_decapsulation (module M) (path "_test.txt")
+
 let deterministic_random =
   let counter = ref 0 in
   fun length ->
@@ -365,15 +549,21 @@ let () =
       [ Alcotest.test_case "seed and decapsulation corpus" `Slow test_seeded_vectors_512;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_512;
         Alcotest.test_case "expanded decapsulation corpus" `Slow
-          test_decapsulation_vectors_512 ];
+          test_decapsulation_vectors_512;
+        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+            run_wycheproof "512" (module W512)) ];
       "FIPS 203 / ML-KEM-768",
       [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors;
-        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors ];
+        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors;
+        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+            run_wycheproof "768" (module W768)) ];
       "FIPS 203 / ML-KEM-1024",
       [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen_1024;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_1024;
-        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors_1024 ];
+        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors_1024;
+        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+            run_wycheproof "1024" (module W1024)) ];
       "API",
       [ Alcotest.test_case "round trip" `Quick test_safe_api_roundtrip;
         Alcotest.test_case "ML-KEM-512 round trip and sizes" `Quick

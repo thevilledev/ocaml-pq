@@ -23,10 +23,12 @@ installable. This release contains the cryptographic primitives, typed APIs,
 test vectors, portability checks, and package metadata.
 
 Key generation and deterministic signing are checked byte-for-byte against
-NIST ACVP vectors for every standardized parameter set. ML-KEM is additionally
-checked against pinned BoringSSL and Wycheproof corpora. This is a new
-implementation that has not received an independent cryptographic audit;
-release `0.1.x` must not be presented as audited software.
+NIST ACVP vectors for every standardized parameter set. ML-KEM and ML-DSA are
+additionally checked against the complete applicable Wycheproof corpus at a
+pinned revision; ML-KEM also uses pinned BoringSSL corpora. Wycheproof does not
+provide SLH-DSA vectors at that revision. This is a new implementation that has
+not received an independent cryptographic audit; release `0.1.x` must not be
+presented as audited software.
 
 TLS, X.509, HPKE, and other downstream integrations are intentionally outside
 this repository and outside the 0.1.0 release.
@@ -113,8 +115,9 @@ the public opam repository, install individual packages with `opam install
 mlkem`, `opam install mldsa`, or `opam install slhdsa`.
 
 The native test suite covers every standardized parameter set and all checked
-in vector corpora. Bytecode covers the portable primitive and non-prohibitive
-tests; the computationally expensive SLH-DSA KAT suite runs natively.
+in vector corpora, including 2,863 applicable Wycheproof cases for ML-KEM and
+ML-DSA. Bytecode covers the portable primitive and non-prohibitive tests; the
+computationally expensive SLH-DSA KAT suite runs natively.
 `js_of_ocaml` CI runs every ML-KEM and ML-DSA set plus representative SHA2 and
 SHAKE SLH-DSA end-to-end operations. Crowbar stresses every public decoder.
 

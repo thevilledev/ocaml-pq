@@ -2,13 +2,17 @@
  (name test_mlkem)
  (modes byte exe)
  (libraries alcotest mlkem mlkem.for_testing)
- (deps (glob_files vectors/*.txt)))
+ (deps
+  (glob_files vectors/*.txt)
+  (glob_files wycheproof/mlkem/*.txt)))
 
 (test
  (name test_mldsa)
  (modes byte exe)
  (libraries alcotest mldsa mldsa.for_testing)
- (deps (glob_files mldsa_vectors/*.txt)))
+ (deps
+  (glob_files mldsa_vectors/*.txt)
+  (glob_files wycheproof/mldsa/*.txt)))
 
 (test
  (name test_slhdsa_hash)

@@ -20,9 +20,11 @@ Initial corpus source: BoringSSL revision
 ML-KEM-1024 corpus source: BoringSSL revision
 `ebd832c3924065de594ffda62b376aeb2e4f61a9`.
 
-The ML-KEM-512 files are a line-oriented conversion of the corresponding
-Wycheproof JSON groups. Field values are unchanged; JSON-only comments, test
-identifiers, and flags are omitted.
+The ML-KEM-512 files are an earlier line-oriented conversion of the
+corresponding Wycheproof JSON groups. Field values are unchanged; JSON-only
+comments, test identifiers, and flags are omitted. The complete, provenance-
+checked ML-KEM and ML-DSA Wycheproof corpus used by the current test suite is
+in `../wycheproof`.
 
 - `mlkem512-seed-decap.txt`: `testvectors_v1/mlkem_512_test.json`
 - `mlkem512-encap.txt`: `testvectors_v1/mlkem_512_encaps_test.json`

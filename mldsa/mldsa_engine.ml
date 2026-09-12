@@ -86,8 +86,17 @@ module type INTERNAL = sig
     randomness:string ->
     (signature, error) result
 
+  val sign_mu_for_testing :
+    signing_key ->
+    mu:string ->
+    randomness:string ->
+    (signature, error) result
+
   val verify_internal_for_testing :
     verification_key -> formatted_message:string -> signature -> bool
+
+  val verify_mu_for_testing :
+    verification_key -> mu:string -> signature -> bool
 end
 
 module Make (P : PARAMETERS) : INTERNAL = struct
@@ -688,15 +697,13 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     ^ String.make 1 (Char.unsafe_chr (String.length context))
     ^ context
 
-  let sign_formatted_with_randomness key ~formatted_message randomness =
-    if String.length randomness <> 32 then
+  let sign_mu_with_randomness key ~mu randomness =
+    if String.length mu <> 64 then
+      invalid_length "ML-DSA message representative" 64 mu
+    else if String.length randomness <> 32 then
       invalid_length "ML-DSA signing randomness" 32 randomness
     else
       let expanded = key.expanded in
-      let mu =
-        Mldsa_keccak.shake256 ~output_length:64
-          (expanded.tr ^ formatted_message)
-      in
       let rho_prime =
         Mldsa_keccak.shake256 ~output_length:64
           (expanded.key ^ randomness ^ mu)
@@ -780,6 +787,13 @@ module Make (P : PARAMETERS) : INTERNAL = struct
       in
       attempt 0
 
+  let sign_formatted_with_randomness key ~formatted_message randomness =
+    let mu =
+      Mldsa_keccak.shake256 ~output_length:64
+        (key.expanded.tr ^ formatted_message)
+    in
+    sign_mu_with_randomness key ~mu randomness
+
   let sign_with_randomness ?(context = "") key ~message randomness =
     if String.length context > 255 then Error (Context_too_long (String.length context))
     else
@@ -789,6 +803,9 @@ module Make (P : PARAMETERS) : INTERNAL = struct
 
   let sign_internal_for_testing key ~formatted_message ~randomness =
     sign_formatted_with_randomness key ~formatted_message randomness
+
+  let sign_mu_for_testing key ~mu ~randomness =
+    sign_mu_with_randomness key ~mu randomness
 
   let require_random operation random length =
     let value = random length in
@@ -810,18 +827,12 @@ module Make (P : PARAMETERS) : INTERNAL = struct
   let sign_deterministic ?context key ~message =
     sign_with_randomness ?context key ~message (String.make 32 '\000')
 
-  let verify_formatted verification_key ~formatted_message signature =
-    match decode_verification_key verification_key, decode_signature signature with
+  let verify_mu verification_key ~mu signature =
+    if String.length mu <> 64 then false
+    else match decode_verification_key verification_key, decode_signature signature with
       | Ok (rho, t1), Ok decoded ->
           if vector_norm_too_large decoded.z (P.gamma1 - beta) then false
           else
-            let tr =
-              Mldsa_keccak.shake256 ~output_length:tr_bytes verification_key
-            in
-            let mu =
-              Mldsa_keccak.shake256 ~output_length:64
-                (tr ^ formatted_message)
-            in
             let matrix = expand_matrix rho in
             let az = matrix_vector_ntt matrix (Array.map ntt decoded.z) in
             let challenge_ntt = ntt (challenge_polynomial decoded.c_tilde 136) in
@@ -858,6 +869,16 @@ module Make (P : PARAMETERS) : INTERNAL = struct
             equal_string decoded.c_tilde expected
       | Error _, _ | _, Error _ -> false
 
+  let verify_formatted verification_key ~formatted_message signature =
+    let tr =
+      Mldsa_keccak.shake256 ~output_length:tr_bytes verification_key
+    in
+    let mu =
+      Mldsa_keccak.shake256 ~output_length:64
+        (tr ^ formatted_message)
+    in
+    verify_mu verification_key ~mu signature
+
   let verify ?(context = "") verification_key ~message signature =
     if String.length context > 255 then false
     else
@@ -867,6 +888,9 @@ module Make (P : PARAMETERS) : INTERNAL = struct
 
   let verify_internal_for_testing verification_key ~formatted_message signature =
     verify_formatted verification_key ~formatted_message signature
+
+  let verify_mu_for_testing verification_key ~mu signature =
+    verify_mu verification_key ~mu signature
 end
 
 module Mldsa44 = Make (struct
