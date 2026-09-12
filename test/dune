@@ -1,5 +1,7 @@
 (test
  (name test_mlkem)
+ (package mlkem)
+ (modules test_mlkem)
  (modes byte exe)
  (libraries alcotest mlkem mlkem.for_testing)
  (deps
@@ -8,6 +10,8 @@
 
 (test
  (name test_mldsa)
+ (package mldsa)
+ (modules test_mldsa)
  (modes byte exe)
  (libraries alcotest mldsa mldsa.for_testing)
  (deps
@@ -16,17 +20,22 @@
 
 (test
  (name test_slhdsa_hash)
+ (package slhdsa)
+ (modules test_slhdsa_hash)
  (modes byte exe)
  (libraries slhdsa.for_testing))
 
 (test
  (name test_slhdsa)
+ (package slhdsa)
+ (modules test_slhdsa)
  (modes exe)
  (libraries alcotest slhdsa slhdsa.for_testing)
  (deps (glob_files slhdsa_vectors/*.txt)))
 
 (executable
  (name test_js)
+ (modules test_js)
  (modes js)
  (libraries mlkem mldsa slhdsa)
  (enabled_if
