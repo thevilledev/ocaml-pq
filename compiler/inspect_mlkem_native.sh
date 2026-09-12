@@ -20,9 +20,14 @@ fi
 extract_symbol () {
   symbol=$1
   printf '%s\n' "$disassembly" | awk -v symbol="$symbol" '
-    $0 ~ ("<[^>]*" symbol "_[0-9]+>:") { found = 1; print; next }
-    found && $0 ~ /^[[:xdigit:]]+[[:space:]]+<[^>]+>:/ { exit }
-    found { print }
+    $0 ~ ("<[^>]*" symbol "_[0-9]+>:") {
+      found = 1
+      active = 1
+      print
+      next
+    }
+    active && $0 ~ /^[[:xdigit:]]+[[:space:]]+<[^>]+>:/ { active = 0 }
+    active { print }
     END { if (!found) exit 2 }
   '
 }
@@ -90,12 +95,12 @@ fi
 
 case "$architecture" in
   arm64|aarch64)
-    printf '%s\n' "$select_body" | grep -Eq '[[:space:]]and[[:space:]]'
-    printf '%s\n' "$select_body" | grep -Eq '[[:space:]]orr[[:space:]]'
+    printf '%s\n' "$select_body" | grep -E '[[:space:]]and[[:space:]]' >/dev/null
+    printf '%s\n' "$select_body" | grep -E '[[:space:]]orr[[:space:]]' >/dev/null
     ;;
   x86_64|amd64)
-    printf '%s\n' "$select_body" | grep -Eq '[[:space:]]and[a-z]*[[:space:]]'
-    printf '%s\n' "$select_body" | grep -Eq '[[:space:]]or[a-z]*[[:space:]]'
+    printf '%s\n' "$select_body" | grep -E '[[:space:]]and[a-z]*[[:space:]]' >/dev/null
+    printf '%s\n' "$select_body" | grep -E '[[:space:]]or[a-z]*[[:space:]]' >/dev/null
     ;;
 esac
 
