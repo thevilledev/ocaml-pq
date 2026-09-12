@@ -25,6 +25,13 @@ byte-for-byte against NIST ACVP vectors. ML-KEM and ML-DSA also use all 2,863
 applicable Wycheproof cases at a pinned revision; ML-KEM adds pinned BoringSSL
 corpora. Wycheproof has no SLH-DSA vectors at that revision.
 
+SLH-DSA checks 36 signing known answers, including randomized signing, and
+all 168 applicable NIST signature-verification cases (24 valid and 144
+invalid). Every parameter set also exercises invalid lengths, context
+limits, randomness callback contracts, and inconsistent private keys.
+Generated-message tests for SHA2-128f and SHAKE-128f cover empty messages,
+255-byte contexts, key serialization, and signature corruption.
+
 Vector provenance and reproduction details are in the test directories:
 
 - [ML-KEM vectors](../test/vectors/README.md)
