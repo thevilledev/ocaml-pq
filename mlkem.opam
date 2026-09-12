@@ -24,7 +24,7 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/thevilledev/ocaml-pq.git"
-tags: [ "cryptography" "post-quantum" "org:mirage" ]
+tags: [ "cryptography" "post-quantum" ]
 depends: [
   "ocaml" {>= "4.13.0"}
   "dune" {>= "3.0"}
@@ -32,4 +32,3 @@ depends: [
   "crowbar" {with-test}
   "odoc" {with-doc}
 ]
-x-maintenance-intent: [ "(latest)" ]
