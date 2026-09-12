@@ -545,20 +545,20 @@ let test_randomness_contract () =
 let () =
   Alcotest.run "mlkem"
     [ "primitives", [ Alcotest.test_case "Keccak known answers" `Quick test_keccak ];
-      "FIPS 203 / ML-KEM-512",
+      "FIPS 203 - ML-KEM-512",
       [ Alcotest.test_case "seed and decapsulation corpus" `Slow test_seeded_vectors_512;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_512;
         Alcotest.test_case "expanded decapsulation corpus" `Slow
           test_decapsulation_vectors_512;
         Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
             run_wycheproof "512" (module W512)) ];
-      "FIPS 203 / ML-KEM-768",
+      "FIPS 203 - ML-KEM-768",
       [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors;
         Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors;
         Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
             run_wycheproof "768" (module W768)) ];
-      "FIPS 203 / ML-KEM-1024",
+      "FIPS 203 - ML-KEM-1024",
       [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen_1024;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_1024;
         Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors_1024;
