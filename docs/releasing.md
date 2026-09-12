@@ -1,8 +1,13 @@
 # Releasing ocaml-pq
 
+[Back to the README](../README.md)
+
 The source tree and generated opam metadata use one release version. Release
 0.1.0 is recorded in `dune-project`, `mlkem.opam`, `mldsa.opam`,
-`slhdsa.opam`, and `CHANGES.md`.
+`slhdsa.opam`, and the [changelog](../CHANGES.md).
+
+Run all commands from the repository root. See the
+[development guide](development.md) for individual checks.
 
 ## Before tagging
 

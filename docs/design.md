@@ -1,5 +1,7 @@
 # Design notes
 
+[Back to the README](../README.md)
+
 ## Repository and package boundary
 
 `ocaml-pq` is one review and development boundary for pure-OCaml
@@ -79,6 +81,22 @@ compressed FIPS address forms; WOTS+; FORS; XMSS; and hypertree signing. The
 engine follows final FIPS 205 `setTypeAndClear` semantics and the standard's
 big-endian `base_2b` extraction rather than the older pre-standard SPHINCS+
 FORS bit convention.
+
+## Security limitations
+
+ML-KEM's NTT, inverse NTT, polynomial arithmetic, compression, and secret
+selection use fixed loop bounds and avoid secret-dependent source-level
+branches. ML-DSA evaluates every norm bound and rejection check before
+deciding whether to retry a signing attempt, but the number of attempts
+remains variable.
+
+These source-level properties do not guarantee constant-time execution. The
+OCaml compiler, garbage collector, and runtime do not provide a formally
+verified constant-time execution model. ML-DSA signing must not be treated as
+side-channel-hardened against precise timing, cache, power, or co-resident
+observation. Timing and native-code regression checks are guards, not proofs.
+See the [security policy](../SECURITY.md) for the audit status and reporting
+guidance.
 
 ## Verification boundary
 
