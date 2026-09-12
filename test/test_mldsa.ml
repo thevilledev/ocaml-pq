@@ -318,6 +318,15 @@ let test_api (module M : VARIANT) =
     (String.equal (M.signature_to_octets deterministic) (M.signature_to_octets hedged));
   expect_error "long signing context accepted"
     (M.sign_deterministic ~context:(String.make 256 'x') signing_key ~message);
+  let random_called = ref false in
+  expect_error "long hedged signing context accepted"
+    (M.sign ~context:(String.make 256 'x')
+       ~random:(fun length ->
+         random_called := true;
+         String.make length '\000')
+       signing_key ~message);
+  Alcotest.(check bool) "invalid context does not consume randomness" false
+    !random_called;
   Alcotest.(check bool) "long verification context fails" false
     (M.verify ~context:(String.make 256 'x') verification_key ~message deterministic);
   expect_error "short seed accepted" (M.signing_key_of_seed "short");

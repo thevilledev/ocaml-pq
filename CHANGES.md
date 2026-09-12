@@ -29,6 +29,11 @@ First release of the `mlkem`, `mldsa`, and `slhdsa` opam packages.
 - Add native, bytecode, and `js_of_ocaml` portability coverage. JavaScript CI
   exercises all ML-KEM and ML-DSA sets and representative SHA2/SHAKE SLH-DSA
   end-to-end operations.
+- Evaluate every ML-DSA signing rejection check before deciding to retry,
+  document its remaining variable-time boundary, and inspect aggressively
+  optimized ML-KEM/ML-DSA native control flow in CI.
+- Split decoder fuzzing by family, isolate expensive exact-length SLH-DSA key
+  imports, and run deterministic bounded fuzz cases in CI.
 - Add release-ready opam metadata for three independent packages, Avrea-hosted
   CI across OCaml 4.13 through 5.4, a non-blocking lower-dependency-bounds job,
   and GitHub Actions pinned to the latest release SHAs.

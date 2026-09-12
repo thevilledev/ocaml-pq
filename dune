@@ -1,0 +1,4 @@
+(env
+ (compiler-audit
+  (ocamlopt_flags
+   (:standard -O3))))

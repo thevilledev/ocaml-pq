@@ -71,6 +71,60 @@ jobs:
       - name: Install from the package definition
         run: opam install . --with-test --with-doc
 
+  fuzz:
+    name: Decoder fuzzing
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
+        with:
+          ocaml-compiler: "5.4"
+      - name: Install test dependencies
+        run: opam install . --deps-only --with-test
+      - name: Compile all decoder fuzz targets
+        run: >-
+          opam exec -- dune build --profile fuzz
+          fuzz/fuzz_mlkem.exe
+          fuzz/fuzz_mldsa.exe
+          fuzz/fuzz_slhdsa.exe
+          fuzz/fuzz_slhdsa_keys.exe
+      - name: Run bounded decoder fuzzing
+        run: |
+          opam exec -- dune exec --profile fuzz fuzz/fuzz_mlkem.exe -- -r 5000 -s 1515870810
+          opam exec -- dune exec --profile fuzz fuzz/fuzz_mldsa.exe -- -r 5000 -s 1515870810
+          opam exec -- dune exec --profile fuzz fuzz/fuzz_slhdsa.exe -- -r 5000 -s 1515870810
+          opam exec -- dune exec --profile fuzz fuzz/fuzz_slhdsa_keys.exe -- -r 1 -s 1515870810
+
+  native-code:
+    name: Native-code regression OCaml ${{ matrix.ocaml-compiler }}
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ocaml-compiler: ["4.13", "5.4"]
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@e89b2ded52a6e13f50162220cf5fe47290162032 # v3.8.0
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+      - name: Install build dependencies
+        run: opam install . --deps-only
+      - name: Build optimized native archives
+        run: >-
+          opam exec -- dune build --profile compiler-audit
+          lib/mlkem.a
+          mldsa/mldsa.a
+      - name: Inspect sensitive native control flow
+        run: |
+          sh compiler/inspect_mlkem_native.sh
+          sh compiler/inspect_mldsa_native.sh
+
   js_of_ocaml:
     name: js_of_ocaml
     runs-on: avrea-ubuntu-latest

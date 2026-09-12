@@ -92,9 +92,12 @@ randomness contracts, context handling, and signature corruption are covered.
 
 CI builds on Avrea runners with OCaml 4.13, 4.14, 5.1, and 5.4. It has a
 non-blocking lowest-dependency-bounds job, opam lint/install checks for all
-three packages, bytecode coverage, native KATs, decoder fuzz compilation, and
-native-to-JavaScript end-to-end coverage. GitHub Actions are pinned to exact
-release commits.
+three packages, bytecode coverage, native KATs, bounded per-family decoder
+fuzzing, compiler inspection of ML-KEM secret arithmetic and ML-DSA rejection
+checks, and
+native-to-JavaScript end-to-end coverage. The expensive exact-length SLH-DSA
+private-key fuzzer runs as a separate one-case smoke test so it cannot starve
+public decoder coverage. GitHub Actions are pinned to exact release commits.
 
 These checks establish interoperability and catch regressions. They are not a
 formal proof, an independent audit, or a FIPS 140 validation.

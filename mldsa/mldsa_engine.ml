@@ -449,11 +449,24 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     then 1
     else 0
 
-  let norm_too_large polynomial bound =
-    Array.exists (fun value -> abs (center value) >= bound) polynomial
+  (* Scan complete vectors before deciding whether to reject a signing
+     candidate.  This does not make ML-DSA signing constant-time -- the FIPS
+     rejection loop still has a variable number of attempts -- but avoids
+     exposing the position of the first coefficient that exceeds a bound. *)
+  let norm_violation_flag polynomial bound =
+    let violation = ref 0 in
+    for index = 0 to Array.length polynomial - 1 do
+      let exceeds = if abs (center polynomial.(index)) >= bound then 1 else 0 in
+      violation := !violation lor exceeds
+    done;
+    !violation
 
-  let vector_norm_too_large vector bound =
-    Array.exists (fun polynomial -> norm_too_large polynomial bound) vector
+  let vector_norm_violation_flag vector bound =
+    let violation = ref 0 in
+    for index = 0 to Array.length vector - 1 do
+      violation := !violation lor norm_violation_flag vector.(index) bound
+    done;
+    !violation
 
   let encode_verification_key rho t1 =
     rho ^ String.concat "" (Array.to_list (Array.map pack_t1 t1))
@@ -750,40 +763,39 @@ module Make (P : PARAMETERS) : INTERNAL = struct
                 Array.init n (fun index -> polynomial.(index) + cs1.(row).(index)))
               y
           in
-          if vector_norm_too_large z (P.gamma1 - beta) then attempt (iteration + 1)
-          else
-            let cs2 =
-              Array.map
-                (fun polynomial -> Array.map center (inverse_ntt polynomial))
-                (poly_product_ntt challenge_ntt s2_ntt)
-            in
-            let r0 =
-              Array.mapi
-                (fun row polynomial ->
-                  Array.init n (fun index -> center (polynomial.(index) - cs2.(row).(index))))
-                w0
-            in
-            if vector_norm_too_large r0 (P.gamma2 - beta) then attempt (iteration + 1)
-            else
-              let ct0 =
-                Array.map
-                  (fun polynomial -> Array.map center (inverse_ntt polynomial))
-                  (poly_product_ntt challenge_ntt t0_ntt)
-              in
-              if vector_norm_too_large ct0 P.gamma2 then attempt (iteration + 1)
-              else
-                let hints = Array.init P.k (fun _ -> Array.make n 0) in
-                let hint_count = ref 0 in
-                for row = 0 to P.k - 1 do
-                  for index = 0 to n - 1 do
-                    let low = center (r0.(row).(index) + ct0.(row).(index)) in
-                    let hint = make_hint low w1.(row).(index) in
-                    hints.(row).(index) <- hint;
-                    hint_count := !hint_count + hint
-                  done
-                done;
-                if !hint_count > P.omega then attempt (iteration + 1)
-                else Ok (encode_signature c_tilde z hints)
+          let rejection = ref (vector_norm_violation_flag z (P.gamma1 - beta)) in
+          let cs2 =
+            Array.map
+              (fun polynomial -> Array.map center (inverse_ntt polynomial))
+              (poly_product_ntt challenge_ntt s2_ntt)
+          in
+          let r0 =
+            Array.mapi
+              (fun row polynomial ->
+                Array.init n (fun index -> center (polynomial.(index) - cs2.(row).(index))))
+              w0
+          in
+          rejection := !rejection lor vector_norm_violation_flag r0 (P.gamma2 - beta);
+          let ct0 =
+            Array.map
+              (fun polynomial -> Array.map center (inverse_ntt polynomial))
+              (poly_product_ntt challenge_ntt t0_ntt)
+          in
+          rejection := !rejection lor vector_norm_violation_flag ct0 P.gamma2;
+          let hints = Array.init P.k (fun _ -> Array.make n 0) in
+          let hint_count = ref 0 in
+          for row = 0 to P.k - 1 do
+            for index = 0 to n - 1 do
+              let low = center (r0.(row).(index) + ct0.(row).(index)) in
+              let hint = make_hint low w1.(row).(index) in
+              hints.(row).(index) <- hint;
+              hint_count := !hint_count + hint
+            done
+          done;
+          let too_many_hints = if !hint_count > P.omega then 1 else 0 in
+          rejection := !rejection lor too_many_hints;
+          if !rejection <> 0 then attempt (iteration + 1)
+          else Ok (encode_signature c_tilde z hints)
       in
       attempt 0
 
@@ -820,9 +832,11 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     let signing_key = keypair_from_seed seed in
     signing_key, signing_key.verification_key
 
-  let sign ?context ~random key ~message =
-    let randomness = require_random "sign" random 32 in
-    sign_with_randomness ?context key ~message randomness
+  let sign ?(context = "") ~random key ~message =
+    if String.length context > 255 then Error (Context_too_long (String.length context))
+    else
+      let randomness = require_random "sign" random 32 in
+      sign_with_randomness ~context key ~message randomness
 
   let sign_deterministic ?context key ~message =
     sign_with_randomness ?context key ~message (String.make 32 '\000')
@@ -831,7 +845,7 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     if String.length mu <> 64 then false
     else match decode_verification_key verification_key, decode_signature signature with
       | Ok (rho, t1), Ok decoded ->
-          if vector_norm_too_large decoded.z (P.gamma1 - beta) then false
+          if vector_norm_violation_flag decoded.z (P.gamma1 - beta) <> 0 then false
           else
             let matrix = expand_matrix rho in
             let az = matrix_vector_ntt matrix (Array.map ntt decoded.z) in

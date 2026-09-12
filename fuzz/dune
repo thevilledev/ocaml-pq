@@ -1,5 +1,27 @@
+(library
+ (name fuzz_helpers)
+ (modules fuzz_helpers)
+ (libraries crowbar)
+ (enabled_if
+  (= %{profile} fuzz)))
+
 (executable
- (name fuzz_decode)
- (libraries crowbar mlkem mldsa slhdsa)
+ (name fuzz_mlkem)
+ (modules fuzz_mlkem)
+ (libraries crowbar fuzz_helpers mlkem)
+ (enabled_if
+  (= %{profile} fuzz)))
+
+(executable
+ (name fuzz_mldsa)
+ (modules fuzz_mldsa)
+ (libraries crowbar fuzz_helpers mldsa)
+ (enabled_if
+  (= %{profile} fuzz)))
+
+(executables
+ (names fuzz_slhdsa fuzz_slhdsa_keys)
+ (modules fuzz_slhdsa fuzz_slhdsa_keys)
+ (libraries crowbar fuzz_helpers slhdsa)
  (enabled_if
   (= %{profile} fuzz)))

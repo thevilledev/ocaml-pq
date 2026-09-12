@@ -87,7 +87,9 @@ one. Expanded-vector and raw-message hooks live only in the explicitly named
   selection use fixed loop bounds and avoid secret-dependent source-level
   branches. Decapsulation always re-encrypts and applies implicit rejection.
 - ML-DSA uses a fixed-bound NTT and the 821-attempt FIPS 204 signing bound. Key,
-  hint, and signature decoding rejects non-canonical encodings.
+  hint, and signature decoding rejects non-canonical encodings. Each signing
+  attempt scans every norm bound and computes all rejection checks before one
+  decision, but the number of attempts remains variable.
 - SLH-DSA implements the final FIPS 205 address-clearing and big-endian
   `base_2b` rules, WOTS+, FORS, XMSS, and hypertree traversal for both SHA2 and
   SHAKE families.
@@ -98,17 +100,31 @@ one. Expanded-vector and raw-message hooks live only in the explicitly named
 
 "Constant time" describes the source structure. The OCaml compiler, garbage
 collector, and runtime do not provide a formally verified constant-time
-execution model. Timing regression checks are guards, not proofs.
+execution model. In particular, ML-DSA signing uses the variable-attempt
+rejection process required by FIPS 204 and must not be treated as
+side-channel-hardened against precise timing, cache, power, or co-resident
+observation. Timing and native-code regression checks are guards, not proofs.
 
 ## Development
 
 ```sh
 opam install . --deps-only --with-test --with-doc
 opam exec -- dune build @install @runtest @doc
-opam exec -- dune exec --profile fuzz fuzz/fuzz_decode.exe
+opam exec -- dune exec --profile fuzz fuzz/fuzz_mlkem.exe
+opam exec -- dune exec --profile fuzz fuzz/fuzz_mldsa.exe
+opam exec -- dune exec --profile fuzz fuzz/fuzz_slhdsa.exe
+opam exec -- dune build --profile compiler-audit lib/mlkem.a
+opam exec -- dune build --profile compiler-audit mldsa/mldsa.a
+sh compiler/inspect_mlkem_native.sh
+sh compiler/inspect_mldsa_native.sh
 opam exec -- dune exec bench/benchmark.exe
 opam exec -- dune exec bench/timing.exe
 ```
+
+The three default fuzzers keep cheap decoder coverage independent so one
+family cannot starve the others. Exact-length SLH-DSA private-key imports
+reconstruct a Merkle root and therefore live in the deliberately slow
+`fuzz/fuzz_slhdsa_keys.exe` target; run it separately with a small repeat count.
 
 For a local installation, use `opam install .`. Once 0.1.0 is accepted into
 the public opam repository, install individual packages with `opam install
@@ -120,6 +136,9 @@ ML-DSA. Bytecode covers the portable primitive and non-prohibitive tests; the
 computationally expensive SLH-DSA KAT suite runs natively.
 `js_of_ocaml` CI runs every ML-KEM and ML-DSA set plus representative SHA2 and
 SHAKE SLH-DSA end-to-end operations. Crowbar stresses every public decoder.
+The bounded fuzz targets are compiled and run in CI; the expensive exact-length
+SLH-DSA private-key target gets one case per decoder in CI, with deeper
+correctness coverage supplied by the native key round-trip/vector tests.
 
 See [SECURITY.md](SECURITY.md) before reporting a security issue. Design and
 package decisions are in [DESIGN.md](DESIGN.md), and the maintainer procedure
