@@ -86,6 +86,68 @@ let test_keccak () =
         d75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be")
     (K.shake256 ~output_length:64 "")
 
+(* The public extendable-output functions, against answers computed with
+   OpenSSL. Input lengths sit on either side of the rate of each sponge, 168
+   bytes for SHAKE128 and 136 for SHAKE256, where the padding changes shape, and
+   the longer outputs span several squeezed blocks. Those are compared by their
+   last 32 bytes. Inputs are the bytes [i mod 251]. *)
+let test_fips202 () =
+  let input length = String.init length (fun i -> Char.chr (i mod 251)) in
+  let check name shake reference (input_length, output_length, expected_tail) =
+    let label = Printf.sprintf "%s(%d bytes, %d)" name input_length output_length in
+    let output = shake ~output_length (input input_length) in
+    if String.length output <> output_length then
+      Alcotest.failf "%s returned %d bytes" label (String.length output);
+    let expected_tail = decode_hex expected_tail in
+    let tail = String.length expected_tail in
+    check_bytes label expected_tail (String.sub output (output_length - tail) tail);
+    (* An extendable output is a prefix of every longer one. *)
+    check_bytes (label ^ " prefix")
+      (shake ~output_length:(output_length / 2) (input input_length))
+      (String.sub output 0 (output_length / 2));
+    (* It is the function ML-KEM itself runs on. *)
+    check_bytes (label ^ " internal") (reference ~output_length (input input_length)) output
+  in
+  List.iter (check "SHAKE128" Mlkem.Fips202.shake128 K.shake128)
+    [ 0, 32, "7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26";
+      0, 0, "";
+      1, 1, "0b";
+      167, 64,
+      "1e552791cc4e93a0d4a8dc47ae49228c2faa869e40e628f6ace477aec3f1ca7a\
+       efe1c1245cf82c265168ad2985121aedd72335ae1187a36742c746cf2b40cb30";
+      168, 64,
+      "f15277eb61c4908d44a2853f3cde071ae2ed7a23461fbe162a1a98cf6875059c\
+       06ffeebfca31afd9976e5592a3e7e5e94a665a8befa4b64a7f089cc0f3572403";
+      169, 64,
+      "015be3338c986d9846affa0f94b4afc2a76bc289c709e1a596ec9eccf090a773\
+       e4d69101b3a0516bfc556ffb886673b491f447926204119fed2933aea2d6091a";
+      336, 169, "4e6d7fae075d1d34799184e2872d16c885ab51f97dd228e55ea216e0914cf402";
+      337, 400, "5f043d5e81eff5b175f42711f1a0e63af423b6adc3a4576de37ec7afe2792917" ];
+  List.iter (check "SHAKE256" Mlkem.Fips202.shake256 K.shake256)
+    [ 0, 32, "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f";
+      0, 0, "";
+      1, 1, "b8";
+      135, 64,
+      "c45dae624ad8a2f5aa7bac9d7557737fd91c96eedb70a6be5574d57a844eade0\
+       7f4056bf081a1098101cea8132188c422136feb4687d1e2209f3fd28bedfb8f4";
+      136, 64,
+      "b7ff4073b3f5a8eabd6e17705ca7f6761a31058f9df781a6a47e3a3063b9d67a\
+       757e8dbf043dac48d2154e46d59c0b9e8bc36ba035153691fbe83b9eff5dae4a";
+      137, 64,
+      "01d90952c642a5eb2a8fc9d713f843a45d7ac05132dddcb2efc9bebc27e37bcb\
+       e42130c36f3540250ab11796980e773683f28d07f0f838606fb9c45e452bd38f";
+      272, 137, "19259dbb2a44b20d499865dda38ac387c32b820a9462bbaf208c2303eac7f7d8";
+      273, 300, "a11afbe4536702607493aa49091d5384f97c81ba4bb7b08a63fd2565c11891bb" ];
+  List.iter (fun (name, shake) ->
+      match shake ~output_length:(-1) "" with
+      | exception Invalid_argument message ->
+          let prefix = "Mlkem.Fips202." ^ name in
+          if not (String.length message >= String.length prefix
+                  && String.sub message 0 (String.length prefix) = prefix) then
+            Alcotest.failf "%s: unexpected message %S" name message
+      | _ -> Alcotest.failf "%s accepted a negative output length" name)
+    [ "shake128", Mlkem.Fips202.shake128; "shake256", Mlkem.Fips202.shake256 ]
+
 let test_nist_keygen () =
   read_blocks (vector_path "mlkem768-keygen.txt")
   |> List.iteri (fun index vector ->
@@ -544,7 +606,9 @@ let test_randomness_contract () =
 
 let () =
   Alcotest.run "mlkem"
-    [ "primitives", [ Alcotest.test_case "Keccak known answers" `Quick test_keccak ];
+    [ "primitives",
+      [ Alcotest.test_case "Keccak known answers" `Quick test_keccak;
+        Alcotest.test_case "public SHAKE known answers" `Quick test_fips202 ];
       "FIPS 203 - ML-KEM-512",
       [ Alcotest.test_case "seed and decapsulation corpus" `Slow test_seeded_vectors_512;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_512;

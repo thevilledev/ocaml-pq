@@ -54,6 +54,15 @@ ML-KEM follows the safe common denominator of Go and Rust:
 - implicit rejection rather than an error oracle for invalid same-length
   ciphertexts.
 
+`mlkem` also exports SHAKE128 and SHAKE256, as `Mlkem.Fips202`. A protocol
+that adopts ML-KEM tends to need them: the HPKE specification of ML-KEM derives
+key pairs with SHAKE256. `digestif`, the usual source of hash functions, has
+SHA-3 but not the FIPS 202 extendable-output functions, so exporting the ones
+ML-KEM already runs on keeps such a protocol from carrying a Keccak of its own.
+The export is deliberately narrow. SHA3-256 and SHA3-512 stay internal, because
+`digestif` provides them, and `mldsa` and `slhdsa` export no hash functions, so
+the three packages still share no code and no dependency.
+
 ML-DSA and SLH-DSA expose typed signing and verification keys and signatures,
 255-byte-bounded contexts, hedged signing with caller-provided entropy, and an
 explicit deterministic operation. Their expanded private-key parsers validate

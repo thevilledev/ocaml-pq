@@ -49,6 +49,22 @@ correct length produce a replacement secret through FIPS 203 implicit
 rejection; they do not produce an error that reveals whether validation
 succeeded.
 
+## SHAKE for protocols that adopt ML-KEM
+
+A protocol that adopts ML-KEM often needs SHAKE as well. HPKE, for example,
+derives an ML-KEM key pair from keying material with SHAKE256. `Mlkem.Fips202`
+exposes the two extendable-output functions that ML-KEM itself runs on, so
+that such a protocol does not need a second Keccak implementation:
+
+```ocaml
+let seed = Mlkem.Fips202.shake256 ~output_length:64 keying_material
+```
+
+`shake128` has the same shape. Both take the whole input at once, and the
+outputs for one input are prefixes of each other. They are the only hash
+functions this repository exports: `digestif` already provides SHA3-256 and
+SHA3-512.
+
 ## Sign and verify messages
 
 ML-DSA and SLH-DSA use the same API shape. The default `sign` operation uses

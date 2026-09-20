@@ -32,6 +32,23 @@ let test_1024 () =
      M.shared_secret_to_octets receiver_secret
   then failwith "ML-KEM-1024 js_of_ocaml round trip failed"
 
+(* A round trip cannot tell a Keccak that is wrong on both sides from a right
+   one, so the public SHAKE256 is held to known answers: the FIPS 202 example
+   for the empty message, and an input and an output of several blocks. *)
+let test_shake256 () =
+  let hex value =
+    String.concat ""
+      (List.map (fun c -> Printf.sprintf "%02x" (Char.code c))
+         (List.of_seq (String.to_seq value)))
+  in
+  let input = String.init 273 (fun i -> Char.chr (i mod 251)) in
+  let long = Mlkem.Fips202.shake256 ~output_length:300 input in
+  if hex (Mlkem.Fips202.shake256 ~output_length:32 "") <>
+     "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f"
+     || hex (String.sub long 268 32) <>
+        "a11afbe4536702607493aa49091d5384f97c81ba4bb7b08a63fd2565c11891bb"
+  then failwith "SHAKE256 js_of_ocaml known answer failed"
+
 module type SIGNATURE = sig
   type error
   type signing_key
@@ -68,6 +85,7 @@ let test_signature name (module M : SIGNATURE) =
         failwith (name ^ " js_of_ocaml verification failed")
 
 let () =
+  test_shake256 ();
   test_512 ();
   test_768 ();
   test_1024 ();
