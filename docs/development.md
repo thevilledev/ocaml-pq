@@ -47,8 +47,15 @@ representative SHA2 and SHAKE SLH-DSA end-to-end operations.
 ## Fuzz decoders
 
 Crowbar exercises public decoders with separate targets for each algorithm,
-so slow cases in one family cannot starve the others. These commands use the
-same bounded runs and seed as CI:
+so slow cases in one family cannot starve the others. The fuzz targets build
+only under the `fuzz` profile and are not part of any package, so `crowbar` is
+not a package test dependency. Install it separately:
+
+```sh
+opam install crowbar
+```
+
+These commands use the same bounded runs and seed as CI:
 
 ```sh
 opam exec -- dune exec --profile fuzz fuzz/fuzz_mlkem.exe -- -r 5000 -s 1515870810

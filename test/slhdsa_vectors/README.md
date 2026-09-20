@@ -72,5 +72,19 @@ strings are represented by empty fields.
 | `siggen-extra.txt` | Parameter set, group/case ID, mode, secret key, message, context, randomness, expected signature |
 | `sigver.txt` | Parameter set, group/case ID, public key, message, context, signature, `valid` or `invalid` |
 
+The vectors derive from
+[usnistgov/ACVP-Server](https://github.com/usnistgov/ACVP-Server). That
+repository carries no `LICENSE` file at the pinned revision; its terms are
+stated in its README, and the copied `LICENSE` here reproduces that notice
+verbatim.
+
+That notice asks that modified works state the nature of the change. The
+change made here is a format conversion only, first made for the 0.1.0
+release: the upstream JSON prompts and expected results were joined by group
+and case ID and rewritten as the tab-separated files described above,
+restricted to the cases the public API supports. No cryptographic field value
+was altered. `import.py` performs the conversion and `SOURCE_SHA256SUMS`
+pins the inputs it was run against.
+
 The vectors are data consumed by tests; the implementation has no dependency
 on the ACVP-Server. Normal test runs require neither Python nor network access.

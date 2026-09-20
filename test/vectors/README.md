@@ -34,5 +34,11 @@ in `../wycheproof`.
 ML-KEM-512 corpus source: Wycheproof revision
 `3fa63dd0344abb611f1fb1d77e119938603ea230`.
 
+The BoringSSL-derived files and the copied `LICENSE` are from
+[google/boringssl](https://github.com/google/boringssl) and are distributed
+under the Apache License 2.0. The `LICENSE` copy is identical at both pinned
+BoringSSL revisions. The ML-KEM-512 files derive from Wycheproof, whose
+license is in `../wycheproof/LICENSE`.
+
 The vectors are data consumed by tests; the implementation has no dependency
 on BoringSSL.

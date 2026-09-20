@@ -27,6 +27,10 @@ edcd66904eb718bf859b21a10a7df64ce5d03f342b43679cdc35276fadb7bc76  mldsa_nist_sig
 02ba6ddf6d9ce5123a52502e015817afc75ad02f5aec2810fde30b923c1d69de  mldsa_nist_siggen_87_tests.txt
 ```
 
+The vectors and the copied `LICENSE` are from
+[google/boringssl](https://github.com/google/boringssl) and are distributed
+under the Apache License 2.0.
+
 The vectors are data consumed by tests; the implementation has no dependency
 on BoringSSL. The complementary ML-DSA Wycheproof signing and verification
 corpus, including malformed-input cases, is documented in `../wycheproof`.

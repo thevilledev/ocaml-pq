@@ -1,6 +1,6 @@
 # Changes
 
-## 0.1.0 (2026-09-12)
+## 0.1.0 (2026-09-20)
 
 First release of the `mlkem`, `mldsa`, and `slhdsa` opam packages.
 
@@ -26,6 +26,11 @@ First release of the `mlkem`, `mldsa`, and `slhdsa` opam packages.
   for every parameter set; add all 2,863 applicable ML-KEM and ML-DSA cases
   from a pinned Wycheproof revision, pinned BoringSSL ML-KEM corpora,
   corruption and malformed-input tests, decoder fuzzing, and hash known answers.
+- Check all 168 applicable NIST SLH-DSA signature-verification cases (24 valid
+  and 144 invalid) and 36 signing known answers, covering hedged signing,
+  8192-byte messages, and 255-byte contexts for every parameter set.
+- Redistribute the BoringSSL, Wycheproof, and NIST ACVP-Server test corpora
+  with their upstream license notices; see `LICENSE.md`.
 - Add native, bytecode, and `js_of_ocaml` portability coverage. JavaScript CI
   exercises all ML-KEM and ML-DSA sets and representative SHA2/SHAKE SLH-DSA
   end-to-end operations.

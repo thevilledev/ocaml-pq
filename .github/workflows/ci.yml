@@ -84,6 +84,8 @@ jobs:
           ocaml-compiler: "5.4"
       - name: Install test dependencies
         run: opam install . --deps-only --with-test
+      - name: Install the fuzzing dependency
+        run: opam install crowbar
       - name: Compile all decoder fuzz targets
         run: >-
           opam exec -- dune build --profile fuzz
