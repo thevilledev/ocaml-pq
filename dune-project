@@ -1,6 +1,6 @@
 (lang dune 3.0)
 (name ocaml-pq)
-(version 0.1.0)
+(version 0.1.1)
 (generate_opam_files true)
 (source (github thevilledev/ocaml-pq))
 (license ISC)

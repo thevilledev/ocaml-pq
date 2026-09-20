@@ -20,7 +20,7 @@ every module.
 
 The packages are independently installable and share a release version.
 For installation from this checkout, see the [README](../README.md#install).
-Once 0.1.0 is accepted into the public opam repository, individual packages
+Once 0.1.1 is accepted into the public opam repository, individual packages
 can be installed with `opam install mlkem`, `opam install mldsa`, or
 `opam install slhdsa`.
 

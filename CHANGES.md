@@ -1,5 +1,16 @@
 # Changes
 
+## 0.1.1 (2026-09-20)
+
+- Export SHAKE128 and SHAKE256 from `mlkem` as `Mlkem.Fips202`. A protocol
+  that adopts ML-KEM often needs SHAKE itself, as HPKE does to derive an ML-KEM
+  key pair, and `digestif` provides SHA-3 without the extendable-output
+  functions. They are the functions ML-KEM already runs on. SHA3-256 and
+  SHA3-512 stay internal, and `mldsa` and `slhdsa` are unchanged.
+- Hold the exported functions to OpenSSL's answers at the block boundaries of
+  both sponges, and SHAKE256 to known answers under `js_of_ocaml`, where the
+  coverage was round trips alone.
+
 ## 0.1.0 (2026-09-20)
 
 First release of the `mlkem`, `mldsa`, and `slhdsa` opam packages.
