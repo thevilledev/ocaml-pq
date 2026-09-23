@@ -72,3 +72,10 @@ val verify_mu_87 :
   mu:string ->
   signature:string ->
   bool
+
+val use_hint_44 : int -> int -> int
+(** [use_hint_44 r h] is FIPS 204 UseHint(h, r) for ML-DSA-44: the high bits
+    of [r], moved by one when [h = 1]. *)
+
+val use_hint_65 : int -> int -> int
+val use_hint_87 : int -> int -> int

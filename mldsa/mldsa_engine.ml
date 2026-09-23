@@ -97,6 +97,8 @@ module type INTERNAL = sig
 
   val verify_mu_for_testing :
     verification_key -> mu:string -> signature -> bool
+
+  val use_hint_for_testing : int -> int -> int
 end
 
 module Make (P : PARAMETERS) : INTERNAL = struct
@@ -435,9 +437,11 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     let high = (value + (alpha / 2) - 1) / alpha in
     if high = modulus then 0, value - q else high, value - (high * alpha)
 
+  (* FIPS 204 Algorithm 40 moves the high bits only for a hint of 1. Decoded
+     hints are always 0 or 1, but test for 1 rather than for nonzero. *)
   let use_hint value hint =
     let high, low = decompose value in
-    if hint = 0 then high
+    if hint <> 1 then high
     else
       let modulus = (q - 1) / (2 * P.gamma2) in
       if low > 0 then (high + 1) mod modulus
@@ -905,6 +909,8 @@ module Make (P : PARAMETERS) : INTERNAL = struct
 
   let verify_mu_for_testing verification_key ~mu signature =
     verify_mu verification_key ~mu signature
+
+  let use_hint_for_testing = use_hint
 end
 
 module Mldsa44 = Make (struct
