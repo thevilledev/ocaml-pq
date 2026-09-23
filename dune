@@ -1,3 +1,5 @@
+(dirs :standard \ formal)
+
 (env
  (compiler-audit
   (ocamlopt_flags
