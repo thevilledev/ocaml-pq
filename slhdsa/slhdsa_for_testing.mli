@@ -31,3 +31,7 @@ val sha512 : string -> string
 val hmac_sha256 : string -> string -> string
 val hmac_sha512 : string -> string -> string
 val shake256 : output_length:int -> string -> string
+val mgf1_sha256 : output_length:int -> string -> string
+val mgf1_sha512 : output_length:int -> string -> string
+(** RFC 8017 MGF1. Raises [Invalid_argument] for a negative length or a mask
+    longer than 2^32 hash outputs. *)

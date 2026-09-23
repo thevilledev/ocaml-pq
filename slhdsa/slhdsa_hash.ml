@@ -327,6 +327,13 @@ let hmac_sha256 key message = hmac ~block_size:64 sha256 key message
 let hmac_sha512 key message = hmac ~block_size:128 sha512 key message
 
 let mgf1 hash ~digest_size ~output_length seed =
+  if output_length < 0 then invalid_arg "MGF1: negative mask length";
+  (* RFC 8017 B.2.1 limits the mask to 2^32 blocks, the range of the 4-byte
+     counter. Shift in two steps: a single [lsr 32] is a no-op under
+     js_of_ocaml, where no reachable length comes near the limit anyway. *)
+  if output_length > 0
+     && (((output_length - 1) / digest_size) lsr 16) lsr 16 <> 0
+  then invalid_arg "MGF1: mask too long";
   let blocks = (output_length + digest_size - 1) / digest_size in
   let result = Buffer.create (blocks * digest_size) in
   for counter = 0 to blocks - 1 do
