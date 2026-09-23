@@ -48,6 +48,8 @@ module type S = sig
   val encapsulate_internal : encapsulation_key -> randomness:string ->
     (ciphertext * shared_secret, error) result
   val decapsulate : decapsulation_key -> ciphertext -> shared_secret
+
+  val ct_equal_for_testing : string -> string -> int
 end
 
 module Make (P : PARAMETERS) = struct
@@ -416,6 +418,14 @@ let ct_equal a b =
   let d = Int32.of_int !diff in
   Int32.to_int (Int32.logand (Int32.shift_right_logical (Int32.logor d (Int32.neg d)) 31) 1l) lxor 1
 
+(* [ct_equal] reads [b] with [unsafe_get] at [a]'s length. Lengths are public,
+   so compare them here and let only equal-length inputs reach the
+   constant-time loop, whose native-code shape CI reviews. *)
+let ct_equal_checked a b =
+  if String.length a <> String.length b then 0 else ct_equal a b
+
+let ct_equal_for_testing = ct_equal_checked
+
 let decapsulation_key_of_expanded encoded =
   if String.length encoded <> expanded_decapsulation_key_size then
     invalid_length "expanded decapsulation key" expanded_decapsulation_key_size (String.length encoded)
@@ -436,7 +446,7 @@ let decapsulation_key_of_expanded encoded =
         | Ok ek ->
             let h_offset = ek_offset + encapsulation_key_size in
             let h = String.sub encoded h_offset 32 in
-            if ct_equal h ek.h <> 1 then Error (Invalid_encoding "expanded decapsulation key has inconsistent H(ek)")
+            if ct_equal_checked h ek.h <> 1 then Error (Invalid_encoding "expanded decapsulation key has inconsistent H(ek)")
             else
               let z = String.sub encoded (h_offset + 32) 32 in
               Ok { seed = None; z; s; ek }
@@ -521,7 +531,7 @@ let decapsulate dk ciphertext =
   let candidate = String.sub g 0 32 and coins = String.sub g 32 32 in
   let rejection = Keccak.shake256 ~output_length:32 (dk.z ^ ciphertext) in
   let expected = pke_encrypt dk.ek message coins in
-  select_secret ~choose_left:(ct_equal ciphertext expected) candidate rejection
+  select_secret ~choose_left:(ct_equal_checked ciphertext expected) candidate rejection
 end
 
 module Mlkem512 = Make (struct

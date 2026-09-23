@@ -8,6 +8,8 @@ let sha3_512 = Mlkem__Keccak.sha3_512
 let shake128 = Mlkem__Keccak.shake128
 let shake256 = Mlkem__Keccak.shake256
 
+let ct_equal = M768.ct_equal_for_testing
+
 let keygen (module M : ENGINE) ~d ~z =
   match M.keygen_internal ~d ~z with
   | Error _ as e -> e
