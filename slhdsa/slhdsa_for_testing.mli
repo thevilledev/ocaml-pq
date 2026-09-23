@@ -35,3 +35,9 @@ val mgf1_sha256 : output_length:int -> string -> string
 val mgf1_sha512 : output_length:int -> string -> string
 (** RFC 8017 MGF1. Raises [Invalid_argument] for a negative length or a mask
     longer than 2^32 hash outputs. *)
+
+val fors_tree_sha2_128f :
+  sk_seed:string -> pk_seed:string -> leaf_index:int -> string * string
+(** The root and the authentication path of [leaf_index] in the first FORS
+    tree of SLH-DSA-SHA2-128f (a = 6). Raises [Invalid_argument] for a leaf
+    index of 64 or more; [-1] returns the root alone. *)

@@ -51,3 +51,5 @@ let hmac_sha512 = Slhdsa__Slhdsa_hash.hmac_sha512
 let shake256 = Slhdsa__Slhdsa_hash.shake256
 let mgf1_sha256 = Slhdsa__Slhdsa_hash.mgf1_sha256
 let mgf1_sha512 = Slhdsa__Slhdsa_hash.mgf1_sha512
+
+let fors_tree_sha2_128f = Slhdsa__Slhdsa_engine.Sha2_128f.fors_tree_for_testing
