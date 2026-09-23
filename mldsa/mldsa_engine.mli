@@ -152,6 +152,12 @@ module type INTERNAL = sig
   val use_hint_for_testing : int -> int -> int
   (** [use_hint_for_testing r h] is FIPS 204 UseHint(h, r): the high bits of
       [r], moved by one when [h = 1]. *)
+
+  val encode_signature_for_testing :
+    c_tilde:string -> z:int array array -> hint:int array array -> string
+  (** [encode_signature_for_testing ~c_tilde ~z ~hint] encodes signature
+      components without signing. Raises [Invalid_argument] if [hint] has
+      more than omega nonzero entries. *)
 end
 
 module Make (P : PARAMETERS) : INTERNAL
