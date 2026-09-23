@@ -14,6 +14,17 @@ let pp_error formatter = function
       Format.pp_print_string formatter
         "ML-DSA rejection sampling exceeded the FIPS 204 iteration limit"
 
+(* FIPS 204 IntegerToBytes(value, 2), the nonce encoding of ExpandA, ExpandS
+   and ExpandMask. Every nonce the engine derives is below 2^16; reject
+   anything else rather than truncate it into a repeated nonce. *)
+let u16_le value =
+  if value < 0 || value > 0xffff then
+    invalid_arg (Printf.sprintf "ML-DSA: nonce %d does not fit in 16 bits" value);
+  let bytes = Bytes.create 2 in
+  Bytes.unsafe_set bytes 0 (Char.unsafe_chr (value land 0xff));
+  Bytes.unsafe_set bytes 1 (Char.unsafe_chr (value lsr 8));
+  Bytes.unsafe_to_string bytes
+
 module type PARAMETERS = sig
   val name : string
   val k : int
@@ -163,12 +174,6 @@ module Make (P : PARAMETERS) : INTERNAL = struct
   let set_u8 bytes index value = Bytes.unsafe_set bytes index (Char.unsafe_chr value)
 
   let sub string offset length = String.sub string offset length
-
-  let u16_le value =
-    let bytes = Bytes.create 2 in
-    set_u8 bytes 0 (value land 0xff);
-    set_u8 bytes 1 ((value lsr 8) land 0xff);
-    Bytes.unsafe_to_string bytes
 
   let norm value =
     let value = value mod q in

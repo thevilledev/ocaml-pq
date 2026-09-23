@@ -6,6 +6,10 @@ type error =
 
 val pp_error : Format.formatter -> error -> unit
 
+val u16_le : int -> string
+(** [u16_le nonce] is FIPS 204 IntegerToBytes([nonce], 2). Raises
+    [Invalid_argument] unless [0 <= nonce < 2^16]. Exposed for tests. *)
+
 module type PARAMETERS = sig
   val name : string
   val k : int

@@ -79,3 +79,7 @@ val use_hint_44 : int -> int -> int
 
 val use_hint_65 : int -> int -> int
 val use_hint_87 : int -> int -> int
+
+val u16_le : int -> string
+(** The nonce encoding of ExpandA, ExpandS and ExpandMask: IntegerToBytes(n,
+    2). Raises [Invalid_argument] unless [0 <= n < 2^16]. *)
