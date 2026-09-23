@@ -479,6 +479,10 @@ let () =
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M65)
                 (vector_path "mldsa_nist_keygen_65_tests.txt"));
+          Alcotest.test_case "ExpandS longer-prefix key generation" `Slow
+            (fun () ->
+              run_keygen (module M65)
+                (vector_path "mldsa_eta_restart_keygen_65_tests.txt"));
           Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
               run_siggen (module M65)
                 (vector_path "mldsa_nist_siggen_65_tests.txt"));
