@@ -53,6 +53,7 @@ assert (
 - [API usage](docs/usage.md): parameter sets, signing examples, randomness, and key formats.
 - [Design notes](docs/design.md): package boundaries, implementation, and security limitations.
 - [Development](docs/development.md): building, testing, fuzzing, and benchmarks.
+- [Formal verification](formal/README.md): Lean proofs and TLA+ models of every implementation.
 - [Releasing](docs/releasing.md): maintainer instructions.
 - [Changelog](CHANGES.md): release history.
 

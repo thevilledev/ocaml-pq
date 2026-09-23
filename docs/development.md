@@ -73,6 +73,19 @@ opam exec -- dune exec --profile fuzz fuzz/fuzz_slhdsa_keys.exe -- -r 1 -s 15158
 CI runs one case per decoder in this target. Native key round-trip and vector
 tests provide deeper correctness coverage.
 
+## Check the formal verification
+
+The Lean proofs and TLA+ models in [`formal/`](../formal/README.md) need
+elan, a Java runtime and `tla2tools.jar`, but no OCaml. Run every check with:
+
+```sh
+TLA2TOOLS=/path/to/tla2tools.jar sh formal/check.sh
+```
+
+Dune ignores the `formal/` directory. The
+[formal verification guide](../formal/README.md) describes what is proved and
+how to build a single area.
+
 ## Inspect native code and measure performance
 
 The [native-code inspection guide](../compiler/README.md) describes how to

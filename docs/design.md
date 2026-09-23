@@ -128,3 +128,12 @@ public decoder coverage. GitHub Actions are pinned to exact release commits.
 
 These checks establish interoperability and catch regressions. They are not a
 formal proof, an independent audit, or a FIPS 140 validation.
+
+The [formal verification](../formal/README.md) adds machine-checked proofs.
+Lean proves that every implementation matches FIPS 203, FIPS 204, FIPS 205
+and the hash standards underneath them on every input. It also proves that
+integer arithmetic never overflows on 64-bit native, `js_of_ocaml` or 31-bit
+platforms. TLA+ models, checked with TLC, explore the loops and state machines
+exhaustively. These proofs cover the source code's behaviour, not side
+channels, the compiler or the runtime, and they do not replace an independent
+audit.

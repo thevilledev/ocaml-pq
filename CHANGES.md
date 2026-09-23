@@ -1,5 +1,19 @@
 # Changes
 
+## Unreleased
+
+- Add a machine-checked verification of every implementation in `formal/`.
+  Lean 4 proofs show that the ML-KEM, ML-DSA and SLH-DSA engines and their
+  Keccak, SHA-2, HMAC and MGF1 primitives match FIPS 203, 204, 205, 202,
+  180-4 and 198-1 and RFC 8017 on every input. The proofs also cover every
+  parameter set and show that `int` arithmetic cannot overflow on 64-bit,
+  `js_of_ocaml` or 31-bit platforms. TLA+ models, checked with TLC, explore
+  the loops and state machines exhaustively at small sizes. No bug was
+  found.
+- Test ML-DSA-65 key generation on seeds that make ExpandS retry with a
+  longer SHAKE256 prefix. That path is otherwise untested, and the expected
+  keys come from OpenSSL.
+
 ## 0.1.1 (2026-09-20)
 
 - Export SHAKE128 and SHAKE256 from `mlkem` as `Mlkem.Fips202`. A protocol
