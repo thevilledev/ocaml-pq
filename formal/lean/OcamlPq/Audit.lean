@@ -131,3 +131,24 @@ file and fails if any other axiom appears.
 #print axioms OcamlPq.Hash.KAT.SHA3_256_empty
 #print axioms OcamlPq.Hash.KAT.SHA256_abc
 #print axioms OcamlPq.Hash.KAT.SHA512_abc
+
+-- End to end: the concrete models of each engine, over the verified hash
+-- models, equal the FIPS algorithms built from the FIPS building blocks.
+#print axioms OcamlPq.EndToEnd.MLKEM.mlkem512_endToEnd
+#print axioms OcamlPq.EndToEnd.MLKEM.mlkem768_endToEnd
+#print axioms OcamlPq.EndToEnd.MLKEM.mlkem1024_endToEnd
+#print axioms OcamlPq.EndToEnd.MLKEM.correct_e2e
+#print axioms OcamlPq.EndToEnd.MLDSA.mldsa44_endToEnd
+#print axioms OcamlPq.EndToEnd.MLDSA.mldsa65_endToEnd
+#print axioms OcamlPq.EndToEnd.MLDSA.mldsa87_endToEnd
+#print axioms OcamlPq.EndToEnd.MLDSA.signMu_e2e
+#print axioms OcamlPq.EndToEnd.MLDSA.verify_e2e
+#print axioms OcamlPq.EndToEnd.MLDSA.buildSigningKey_e2e
+#print axioms OcamlPq.EndToEnd.MLDSA.sign_verify
+#print axioms OcamlPq.EndToEnd.SLHDSA.keypairFromSeed_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.signFormatted_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.verifyFormatted_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.sign_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.verify_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.verify_sign_e2e
+#print axioms OcamlPq.EndToEnd.SLHDSA.verify_sign_cross_platform

@@ -6,3 +6,6 @@ import OcamlPq.MLDSAAlg
 import OcamlPq.Encoding
 import OcamlPq.SLHDSA
 import OcamlPq.Hash
+import OcamlPq.EndToEnd.MLKEM
+import OcamlPq.EndToEnd.MLDSA
+import OcamlPq.EndToEnd.SLHDSA
