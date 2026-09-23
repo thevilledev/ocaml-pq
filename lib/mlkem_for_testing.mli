@@ -10,6 +10,10 @@ val shake128 : output_length:int -> string -> string
 val shake256 : output_length:int -> string -> string
 (** Internal hash entry points exposed for primitive known-answer tests. *)
 
+val ct_equal : string -> string -> int
+(** The comparison behind implicit rejection: 1 if the two strings are equal,
+    0 otherwise, including when their lengths differ. *)
+
 val keygen_512 : d:string -> z:string ->
   ((string * string), Mlkem.Mlkem512.error) result
 val encapsulate_512 : encapsulation_key:string -> randomness:string ->

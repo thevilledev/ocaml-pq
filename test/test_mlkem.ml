@@ -599,6 +599,25 @@ let test_implicit_rejection () =
     false (String.equal valid invalid_1);
   check_bytes "implicit rejection is deterministic" invalid_1 invalid_2
 
+let test_ct_equal () =
+  let ciphertext = String.init 1088 (fun index -> Char.chr (index land 0xff)) in
+  let flip index =
+    String.mapi
+      (fun position c ->
+        if position = index then Char.chr (Char.code c lxor 0x80) else c)
+      ciphertext
+  in
+  Alcotest.(check int) "equal" 1 (T.ct_equal ciphertext ciphertext);
+  Alcotest.(check int) "empty" 1 (T.ct_equal "" "");
+  Alcotest.(check int) "first byte differs" 0 (T.ct_equal ciphertext (flip 0));
+  Alcotest.(check int) "last byte differs" 0 (T.ct_equal ciphertext (flip 1087));
+  (* Unequal lengths never reach the byte loop, which would otherwise read
+     the shorter string out of bounds. *)
+  Alcotest.(check int) "second shorter" 0
+    (T.ct_equal ciphertext (String.sub ciphertext 0 1087));
+  Alcotest.(check int) "second empty" 0 (T.ct_equal ciphertext "");
+  Alcotest.(check int) "second longer" 0 (T.ct_equal ciphertext (ciphertext ^ "\000"))
+
 let test_randomness_contract () =
   Alcotest.check_raises "short randomness callback"
     (Invalid_argument "Mlkem768: randomness callback returned 63 bytes, expected 64")
@@ -636,4 +655,5 @@ let () =
           test_safe_api_roundtrip_1024;
         Alcotest.test_case "strict decoding" `Quick test_strict_decoding;
         Alcotest.test_case "implicit rejection" `Quick test_implicit_rejection;
+        Alcotest.test_case "ciphertext comparison" `Quick test_ct_equal;
         Alcotest.test_case "randomness contract" `Quick test_randomness_contract ] ]

@@ -45,6 +45,11 @@ module type S = sig
   val encapsulate_internal : encapsulation_key -> randomness:string ->
     (ciphertext * shared_secret, error) result
   val decapsulate : decapsulation_key -> ciphertext -> shared_secret
+
+  val ct_equal_for_testing : string -> string -> int
+  (** [ct_equal_for_testing a b] is the comparison decapsulation uses: 1 if
+      [a] and [b] are equal, 0 otherwise, including when their lengths
+      differ. *)
 end
 
 module Make (P : PARAMETERS) : S
