@@ -49,3 +49,5 @@ let sha512 = Slhdsa__Slhdsa_hash.sha512
 let hmac_sha256 = Slhdsa__Slhdsa_hash.hmac_sha256
 let hmac_sha512 = Slhdsa__Slhdsa_hash.hmac_sha512
 let shake256 = Slhdsa__Slhdsa_hash.shake256
+let mgf1_sha256 = Slhdsa__Slhdsa_hash.mgf1_sha256
+let mgf1_sha512 = Slhdsa__Slhdsa_hash.mgf1_sha512
