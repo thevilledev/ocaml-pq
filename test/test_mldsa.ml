@@ -350,6 +350,35 @@ let test_api (module M : VARIANT) =
   | exception Invalid_argument _ -> ()
   | _ -> Alcotest.fail "short randomness callback accepted"
 
+(* FIPS 204 Algorithm 40 moves the high bits only for a hint of 1. Values
+   around the Decompose buckets, including the corner case near q - 1. *)
+let test_use_hint use_hint ~gamma2 =
+  let q = 8_380_417 in
+  let modulus = (q - 1) / (2 * gamma2) in
+  let values =
+    [ 0; 1; gamma2 - 1; gamma2; gamma2 + 1; 2 * gamma2; q - gamma2 - 1;
+      q - gamma2; q - 2; q - 1 ]
+  in
+  List.iter
+    (fun r ->
+      let high = use_hint r 0 in
+      Alcotest.(check bool)
+        (Format.sprintf "high bits of %d in range" r)
+        true (0 <= high && high < modulus);
+      List.iter
+        (fun hint ->
+          Alcotest.(check int)
+            (Format.sprintf "hint %d for %d" hint r)
+            high (use_hint r hint))
+        [ -1; 2; 255 ];
+      let moved = use_hint r 1 in
+      Alcotest.(check bool)
+        (Format.sprintf "hint 1 moves %d by one bucket" r)
+        true
+        (moved = (high + 1) mod modulus
+         || moved = (high + modulus - 1) mod modulus))
+    values
+
 let () =
   let module M44 = struct
     include Mldsa.Mldsa44
@@ -390,7 +419,9 @@ let () =
               run_wycheproof_verify (module M44)
                 (wycheproof_path "mldsa_44_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M44)) ] );
+              test_api (module M44));
+          Alcotest.test_case "UseHint" `Quick (fun () ->
+              test_use_hint Mldsa_for_testing.use_hint_44 ~gamma2:95_232) ] );
       ( "ML-DSA-65",
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M65)
@@ -408,7 +439,9 @@ let () =
               run_wycheproof_verify (module M65)
                 (wycheproof_path "mldsa_65_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M65)) ] );
+              test_api (module M65));
+          Alcotest.test_case "UseHint" `Quick (fun () ->
+              test_use_hint Mldsa_for_testing.use_hint_65 ~gamma2:261_888) ] );
       ( "ML-DSA-87",
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M87)
@@ -426,4 +459,6 @@ let () =
               run_wycheproof_verify (module M87)
                 (wycheproof_path "mldsa_87_verify_test.txt"));
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M87)) ] ) ]
+              test_api (module M87));
+          Alcotest.test_case "UseHint" `Quick (fun () ->
+              test_use_hint Mldsa_for_testing.use_hint_87 ~gamma2:261_888) ] ) ]

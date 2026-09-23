@@ -144,6 +144,10 @@ module type INTERNAL = sig
 
   val verify_mu_for_testing :
     verification_key -> mu:string -> signature -> bool
+
+  val use_hint_for_testing : int -> int -> int
+  (** [use_hint_for_testing r h] is FIPS 204 UseHint(h, r): the high bits of
+      [r], moved by one when [h = 1]. *)
 end
 
 module Make (P : PARAMETERS) : INTERNAL
