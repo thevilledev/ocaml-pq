@@ -83,3 +83,15 @@ val use_hint_87 : int -> int -> int
 val u16_le : int -> string
 (** The nonce encoding of ExpandA, ExpandS and ExpandMask: IntegerToBytes(n,
     2). Raises [Invalid_argument] unless [0 <= n < 2^16]. *)
+
+val encode_signature_44 :
+  c_tilde:string -> z:int array array -> hint:int array array -> string
+(** [encode_signature_44 ~c_tilde ~z ~hint] encodes signature components
+    without signing. Raises [Invalid_argument] if [hint] has more than omega
+    nonzero entries. *)
+
+val encode_signature_65 :
+  c_tilde:string -> z:int array array -> hint:int array array -> string
+
+val encode_signature_87 :
+  c_tilde:string -> z:int array array -> hint:int array array -> string

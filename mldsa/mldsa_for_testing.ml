@@ -70,3 +70,7 @@ let use_hint_65 = Mldsa__Mldsa_engine.Mldsa65.use_hint_for_testing
 let use_hint_87 = Mldsa__Mldsa_engine.Mldsa87.use_hint_for_testing
 
 let u16_le = Mldsa__Mldsa_engine.u16_le
+
+let encode_signature_44 = Mldsa__Mldsa_engine.Mldsa44.encode_signature_for_testing
+let encode_signature_65 = Mldsa__Mldsa_engine.Mldsa65.encode_signature_for_testing
+let encode_signature_87 = Mldsa__Mldsa_engine.Mldsa87.encode_signature_for_testing

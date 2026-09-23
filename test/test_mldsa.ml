@@ -62,6 +62,9 @@ module type VARIANT = sig
     message:string ->
     signature ->
     bool
+
+  val encode_signature :
+    c_tilde:string -> z:int array array -> hint:int array array -> string
 end
 
 let hex_value = function
@@ -395,6 +398,32 @@ let test_nonce_encoding () =
       | _ -> Alcotest.failf "encoded nonce %d in two bytes" nonce)
     [ -1; 0x10000; 0x10001 ]
 
+(* The signer rejects candidates with more than omega hints, so the encoder
+   never sees them; it must still refuse them rather than write past the
+   hint area. *)
+let test_hint_limit (module M : VARIANT) ~c_tilde_bytes ~l ~k ~omega =
+  let c_tilde = String.make c_tilde_bytes '\000' in
+  let z = Array.init l (fun _ -> Array.make 256 0) in
+  let hint count =
+    let hint = Array.init k (fun _ -> Array.make 256 0) in
+    for index = 0 to count - 1 do
+      hint.(index mod k).(index / k) <- 1
+    done;
+    hint
+  in
+  let encoded = M.encode_signature ~c_tilde ~z ~hint:(hint omega) in
+  Alcotest.(check int) "encoded length" M.signature_size (String.length encoded);
+  Alcotest.(check bool) "omega hints decode" true
+    (Result.is_ok (M.signature_of_octets encoded));
+  List.iter
+    (fun count ->
+      match M.encode_signature ~c_tilde ~z ~hint:(hint count) with
+      | exception Invalid_argument _ -> ()
+      | _ ->
+          Alcotest.failf "encoded a signature with %d hints (omega = %d)"
+            count omega)
+    [ omega + 1; k * 256 ]
+
 let () =
   let module M44 = struct
     include Mldsa.Mldsa44
@@ -402,6 +431,7 @@ let () =
     let sign_mu = Mldsa_for_testing.sign_mu_44
     let verify_internal = Mldsa_for_testing.verify_internal_44
     let verify_mu = Mldsa_for_testing.verify_mu_44
+    let encode_signature = Mldsa_for_testing.encode_signature_44
   end in
   let module M65 = struct
     include Mldsa.Mldsa65
@@ -409,6 +439,7 @@ let () =
     let sign_mu = Mldsa_for_testing.sign_mu_65
     let verify_internal = Mldsa_for_testing.verify_internal_65
     let verify_mu = Mldsa_for_testing.verify_mu_65
+    let encode_signature = Mldsa_for_testing.encode_signature_65
   end in
   let module M87 = struct
     include Mldsa.Mldsa87
@@ -416,6 +447,7 @@ let () =
     let sign_mu = Mldsa_for_testing.sign_mu_87
     let verify_internal = Mldsa_for_testing.verify_internal_87
     let verify_mu = Mldsa_for_testing.verify_mu_87
+    let encode_signature = Mldsa_for_testing.encode_signature_87
   end in
   Alcotest.run "ML-DSA"
     [ ( "encodings",
@@ -439,7 +471,10 @@ let () =
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M44));
           Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_44 ~gamma2:95_232) ] );
+              test_use_hint Mldsa_for_testing.use_hint_44 ~gamma2:95_232);
+          Alcotest.test_case "hint count bound" `Quick (fun () ->
+              test_hint_limit (module M44) ~c_tilde_bytes:32 ~l:4 ~k:4
+                ~omega:80) ] );
       ( "ML-DSA-65",
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M65)
@@ -459,7 +494,10 @@ let () =
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M65));
           Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_65 ~gamma2:261_888) ] );
+              test_use_hint Mldsa_for_testing.use_hint_65 ~gamma2:261_888);
+          Alcotest.test_case "hint count bound" `Quick (fun () ->
+              test_hint_limit (module M65) ~c_tilde_bytes:48 ~l:5 ~k:6
+                ~omega:55) ] );
       ( "ML-DSA-87",
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M87)
@@ -479,4 +517,7 @@ let () =
           Alcotest.test_case "typed API and validation" `Slow (fun () ->
               test_api (module M87));
           Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_87 ~gamma2:261_888) ] ) ]
+              test_use_hint Mldsa_for_testing.use_hint_87 ~gamma2:261_888);
+          Alcotest.test_case "hint count bound" `Quick (fun () ->
+              test_hint_limit (module M87) ~c_tilde_bytes:64 ~l:7 ~k:8
+                ~omega:75) ] ) ]

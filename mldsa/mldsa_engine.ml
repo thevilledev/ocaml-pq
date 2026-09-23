@@ -110,6 +110,9 @@ module type INTERNAL = sig
     verification_key -> mu:string -> signature -> bool
 
   val use_hint_for_testing : int -> int -> int
+
+  val encode_signature_for_testing :
+    c_tilde:string -> z:int array array -> hint:int array array -> string
 end
 
 module Make (P : PARAMETERS) : INTERNAL = struct
@@ -706,6 +709,11 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     for row = 0 to P.k - 1 do
       for coefficient = 0 to n - 1 do
         if hint.(row).(coefficient) <> 0 then begin
+          (* [set_u8] does not check bounds, and position [omega] starts the
+             per-row counts. The signer never gets here with more than omega
+             hints; fail loudly rather than write past the hint area. *)
+          if !count = P.omega then
+            invalid_arg (P.name ^ ": a signature holds at most omega hints");
           set_u8 output (hint_offset + !count) coefficient;
           incr count
         end
@@ -916,6 +924,9 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     verify_mu verification_key ~mu signature
 
   let use_hint_for_testing = use_hint
+
+  let encode_signature_for_testing ~c_tilde ~z ~hint =
+    encode_signature c_tilde z hint
 end
 
 module Mldsa44 = Make (struct
