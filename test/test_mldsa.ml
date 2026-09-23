@@ -379,6 +379,22 @@ let test_use_hint use_hint ~gamma2 =
          || moved = (high + modulus - 1) mod modulus))
     values
 
+let test_nonce_encoding () =
+  List.iter
+    (fun (nonce, expected) ->
+      Alcotest.(check string)
+        (Format.sprintf "nonce %d" nonce)
+        expected
+        (Mldsa_for_testing.u16_le nonce))
+    [ (0, "\x00\x00"); (1, "\x01\x00"); (0x0102, "\x02\x01");
+      (0xffff, "\xff\xff") ];
+  List.iter
+    (fun nonce ->
+      match Mldsa_for_testing.u16_le nonce with
+      | exception Invalid_argument _ -> ()
+      | _ -> Alcotest.failf "encoded nonce %d in two bytes" nonce)
+    [ -1; 0x10000; 0x10001 ]
+
 let () =
   let module M44 = struct
     include Mldsa.Mldsa44
@@ -402,7 +418,9 @@ let () =
     let verify_mu = Mldsa_for_testing.verify_mu_87
   end in
   Alcotest.run "ML-DSA"
-    [ ( "ML-DSA-44",
+    [ ( "encodings",
+        [ Alcotest.test_case "16-bit nonces" `Quick test_nonce_encoding ] );
+      ( "ML-DSA-44",
         [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
               run_keygen (module M44)
                 (vector_path "mldsa_nist_keygen_44_tests.txt"));
