@@ -1,0 +1,17 @@
+name = "OcamlPq"
+version = "0.1.0"
+defaultTargets = ["OcamlPq"]
+
+[leanOptions]
+pp.unicode.fun = true
+relaxedAutoImplicit = false
+autoImplicit = false
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.34.0"
+
+[[lean_lib]]
+name = "OcamlPq"
