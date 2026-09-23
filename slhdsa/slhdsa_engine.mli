@@ -140,6 +140,13 @@ module type INTERNAL = sig
 
   val verify_internal_for_testing :
     verification_key -> formatted_message:string -> signature -> bool
+
+  val fors_tree_for_testing :
+    sk_seed:string -> pk_seed:string -> leaf_index:int -> string * string
+  (** [fors_tree_for_testing ~sk_seed ~pk_seed ~leaf_index] runs the tree
+      hash over the first FORS tree of keypair 0 and returns its root and the
+      authentication path of [leaf_index]. Raises [Invalid_argument] for a
+      leaf index of [2^a] or more; [-1] returns the root alone. *)
 end
 
 module Make (P : PARAMETERS) : INTERNAL

@@ -362,6 +362,31 @@ let test_generated_messages name =
       [ first; hedged ])
     [ 0, 0; 1, 255; 136, 1; 1024, 32 ]
 
+(* SLH-DSA-SHA2-128f FORS trees have a = 6 levels and 16-byte nodes. Signing
+   masks every leaf index into range first; the tree hash must still refuse
+   one outside the tree rather than blit past its authentication path or
+   return it zeroed. *)
+let test_treehash_index () =
+  let n = 16 and a = 6 in
+  let sk_seed = String.make n '\x01' and pk_seed = String.make n '\x02' in
+  let tree leaf_index =
+    Slhdsa_for_testing.fors_tree_sha2_128f ~sk_seed ~pk_seed ~leaf_index
+  in
+  let root, first = tree 0 in
+  let last_root, last = tree ((1 lsl a) - 1) in
+  let root_only, _ = tree (-1) in
+  Alcotest.(check int) "root length" n (String.length root);
+  Alcotest.(check int) "authentication path length" (a * n) (String.length last);
+  Alcotest.(check string) "last leaf has the same root" root last_root;
+  Alcotest.(check string) "root alone" root root_only;
+  Alcotest.(check bool) "paths differ" false (String.equal first last);
+  List.iter
+    (fun leaf_index ->
+      expect_invalid_argument
+        (Format.sprintf "leaf index %d accepted" leaf_index)
+        (fun () -> tree leaf_index))
+    [ 1 lsl a; (1 lsl (a + 1)) - 1; 1 lsl (a + 1); 1 lsl 20 ]
+
 let () =
   Alcotest.run "SLH-DSA"
     [
@@ -372,6 +397,7 @@ let () =
           Alcotest.test_case "signature verification" `Slow test_sigver;
         ] );
       "decoding", [ Alcotest.test_case "length checks" `Quick test_decoding ];
+      "tree hash", [ Alcotest.test_case "leaf index bound" `Quick test_treehash_index ];
       "additional NIST signing vectors",
         List.map (fun (name, _) ->
           Alcotest.test_case name `Slow (fun () -> test_extra_siggen name)) variants;

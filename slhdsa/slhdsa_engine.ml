@@ -82,6 +82,9 @@ module type INTERNAL = sig
 
   val verify_internal_for_testing :
     verification_key -> formatted_message:string -> signature -> bool
+
+  val fors_tree_for_testing :
+    sk_seed:string -> pk_seed:string -> leaf_index:int -> string * string
 end
 
 module Make (P : PARAMETERS) : INTERNAL = struct
@@ -335,6 +338,11 @@ module Make (P : PARAMETERS) : INTERNAL = struct
     public_elements
 
   let treehash context ~leaf_index ~index_offset ~height ~tree_address gen_leaf =
+    (* [authentication] has one slot per level below the root. A leaf index
+       outside the tree would blit past it or leave the path zeroed; -1 asks
+       for the root alone. *)
+    if leaf_index >= 1 lsl height then
+      invalid_arg (P.name ^ ": tree hash leaf index outside the tree");
     let stack = Array.make (height + 1) "" in
     let heights = Array.make (height + 1) 0 in
     let offset = ref 0 in
@@ -730,6 +738,12 @@ module Make (P : PARAMETERS) : INTERNAL = struct
 
   let verify_internal_for_testing verification_key ~formatted_message signature =
     verify_formatted verification_key ~formatted_message signature
+
+  let fors_tree_for_testing ~sk_seed ~pk_seed ~leaf_index =
+    let context : hash_context = { sk_seed; pk_seed } in
+    let tree_address = keypair_address 3 zero_address in
+    treehash context ~leaf_index ~index_offset:0 ~height:P.a ~tree_address
+      (fors_leaf context tree_address)
 end
 
 module Sha2_128s = Make (struct
