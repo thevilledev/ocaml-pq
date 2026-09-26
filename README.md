@@ -13,18 +13,23 @@ All standardized parameter sets are supported. The packages require OCaml
 4.13 or newer, have no C stubs or runtime package dependencies, and work in
 native programs, MirageOS unikernels, and `js_of_ocaml` applications.
 
-**Security status:** The `0.1.x` series has not received an independent
+**Security status:** The `0.x` series has not received an independent
 cryptographic audit. Constant-time execution is not guaranteed, and ML-DSA
 signing has timing limitations. Read the [security policy](SECURITY.md)
 before use.
 
 ## Install
 
-From a checkout of this repository:
+The packages are published on opam as
+[`mlkem`](https://opam.ocaml.org/packages/mlkem/),
+[`mldsa`](https://opam.ocaml.org/packages/mldsa/), and
+[`slhdsa`](https://opam.ocaml.org/packages/slhdsa/):
 
 ```sh
-opam install .
+opam install mlkem mldsa slhdsa
 ```
+
+To install from a checkout of this repository instead, run `opam install .`.
 
 Add the package you use to your Dune stanza, for example `(libraries mlkem)`.
 

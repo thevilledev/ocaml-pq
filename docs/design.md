@@ -5,7 +5,7 @@
 ## Repository and package boundary
 
 `ocaml-pq` is one review and development boundary for pure-OCaml
-post-quantum primitives. Version 0.1.0 publishes three separate opam packages:
+post-quantum primitives. The repository publishes three separate opam packages:
 
 - `mlkem` for FIPS 203;
 - `mldsa` for FIPS 204;

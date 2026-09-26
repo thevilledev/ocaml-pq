@@ -9,7 +9,7 @@ the affected revision, and your assessment of impact when possible.
 No release should be described as independently audited unless the audit and
 the exact audited revision are linked from this file.
 
-The initial `0.1.x` series has not received an independent cryptographic audit.
+The initial `0.x` series has not received an independent cryptographic audit.
 
 ## Side-channel boundary
 
