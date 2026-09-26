@@ -1,26 +1,19 @@
 # Changes
 
-## Unreleased
+## 0.2.0 (2026-09-26)
 
-- Export TurboSHAKE128 and TurboSHAKE256 of RFC 9861 from `mlkem` as
-  `Mlkem.Rfc9861`, with a domain separation byte that defaults to `0x1F`. The
-  HPKE KDFs of `draft-ietf-hpke-pq` are built on them, and no other OCaml
-  package provides them. They run the Keccak code of ML-KEM, now able to start
-  its permutation at round 12 for KECCAK-p[1600, 12]; the copies in `mldsa`
-  and `slhdsa` take the same change and stay textual copies. They are held to
-  every vector of RFC 9861, Section 5, but its 24 MB input, and to answers
-  from pycryptodome at the rate boundaries.
-- Add a machine-checked verification of every implementation in `formal/`.
-  Lean 4 proofs show that the ML-KEM, ML-DSA and SLH-DSA engines and their
-  Keccak, SHA-2, HMAC and MGF1 primitives match FIPS 203, 204, 205, 202,
-  180-4 and 198-1 and RFC 8017 on every input. The proofs also cover every
-  parameter set and show that `int` arithmetic cannot overflow on 64-bit,
-  `js_of_ocaml` or 31-bit platforms. TLA+ models, checked with TLC, explore
-  the loops and state machines exhaustively at small sizes. No bug was
-  found.
-- Test ML-DSA-65 key generation on seeds that make ExpandS retry with a
-  longer SHAKE256 prefix. That path is otherwise untested, and the expected
-  keys come from OpenSSL.
+- Export TurboSHAKE128 and TurboSHAKE256 (RFC 9861) from `mlkem` as
+  `Mlkem.Rfc9861`, for the HPKE KDFs of `draft-ietf-hpke-pq`.
+- Add Lean 4 proofs that every implementation matches its standard, and TLA+
+  models checked with TLC, in `formal/`. No bug was found.
+- ML-DSA: follow FIPS 204 in `UseHint` for hints other than 0 or 1, reject
+  nonces that do not fit in 16 bits, and refuse to encode more than omega
+  hints. None is reachable through the public API.
+- ML-KEM: compare lengths before the constant-time equality check.
+- SLH-DSA: reject tree-hash leaf indices outside the tree, and enforce the
+  MGF1 mask length limit of RFC 8017.
+- Test ML-DSA-65 key generation on seeds that make ExpandS read a longer
+  SHAKE256 prefix.
 
 ## 0.1.1 (2026-09-20)
 
