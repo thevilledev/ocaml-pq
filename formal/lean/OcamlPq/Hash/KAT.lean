@@ -1,4 +1,5 @@
 import OcamlPq.Hash.Sponge
+import OcamlPq.Hash.TurboShake
 import OcamlPq.Hash.HmacMgf1
 
 /-!
@@ -6,15 +7,18 @@ import OcamlPq.Hash.HmacMgf1
 
 Each model evaluation is kernel-checked (`decide +kernel`, no `native_decide`),
 and the equivalence theorems then carry the published digest over to the
-FIPS 202 / FIPS 180-4 / FIPS 198-1 transcriptions. So these are theorems about
+FIPS 202 / RFC 9861 / FIPS 180-4 / FIPS 198-1 transcriptions. So these are theorems about
 the *specifications* (`FIPS202.SHA3_256 [] = …` etc.), which validates the
 transcriptions against the published answers.
 
 Sources: FIPS 202 / NIST CSRC example values (SHA3-256(""), SHA3-512(""),
-SHAKE128("", 256 bits), SHAKE256("", 256 bits)), FIPS 180-4 / NIST examples
+SHAKE128("", 256 bits), SHAKE256("", 256 bits)), RFC 9861 Section 5
+(TurboSHAKE128 of the empty string and of `FF` with domain `06`,
+TurboSHAKE256 of the empty string), FIPS 180-4 / NIST examples
 (SHA-256("abc"), the 448-bit two-block message, SHA-512("abc"), the 896-bit
 two-block message), RFC 4231 test case 1 (HMAC-SHA-256/512). The values were
-cross-checked with Python's `hashlib`/`hmac`.
+cross-checked with Python's `hashlib`/`hmac`, and the TurboSHAKE ones with
+pycryptodome.
 -/
 
 namespace OcamlPq.Hash.KAT
@@ -168,6 +172,49 @@ theorem SHA512_896 : SHA512 (bytesToBitsBE msg896) = bytesToBitsBE
      228, 51, 27, 153, 222, 196, 181, 67, 58, 199, 211, 41, 238, 182, 221, 38, 84, 94, 150, 229,
      91, 135, 75, 233, 9] := by
   rw [← sha512_896_model, sha512_eq _ (by decide)]
+
+/-! ## RFC 9861 TurboSHAKE, Section 5 -/
+
+set_option maxRecDepth 100000 in
+theorem turboshake128_empty_model : turboshake128 0x1f 32 [] =
+    [30, 65, 95, 28, 89, 131, 175, 242, 22, 146, 23, 39, 125, 23, 187, 83, 140, 217, 69, 163,
+     151, 221, 236, 84, 31, 28, 228, 26, 242, 193, 183, 76] := by
+  decide +kernel
+
+/-- RFC 9861: `TurboSHAKE128(M = 00^0, D = 1F, 32) = 1e415f1c…f2c1b74c`. -/
+theorem TurboSHAKE128_empty : RFC9861.TurboSHAKE128 [] 0x1F 32 = bytesToBits
+    [30, 65, 95, 28, 89, 131, 175, 242, 22, 146, 23, 39, 125, 23, 187, 83, 140, 217, 69, 163,
+     151, 221, 236, 84, 31, 28, 228, 26, 242, 193, 183, 76] := by
+  rw [← turboshake128_empty_model, turboshake128_eq _ _ _ (by norm_num) (by norm_num)]; rfl
+
+set_option maxRecDepth 100000 in
+theorem turboshake128_ff_06_model : turboshake128 0x06 32 [0xff] =
+    [142, 201, 198, 100, 101, 237, 13, 74, 108, 53, 209, 53, 6, 113, 141, 104, 122, 37, 203, 5,
+     199, 76, 202, 30, 66, 80, 26, 189, 131, 135, 74, 103] := by
+  decide +kernel
+
+/-- RFC 9861: `TurboSHAKE128(M = FF, D = 06, 32) = 8ec9c664…83874a67`, a
+domain byte other than the default. -/
+theorem TurboSHAKE128_ff_06 : RFC9861.TurboSHAKE128 [0xff] 0x06 32 = bytesToBits
+    [142, 201, 198, 100, 101, 237, 13, 74, 108, 53, 209, 53, 6, 113, 141, 104, 122, 37, 203, 5,
+     199, 76, 202, 30, 66, 80, 26, 189, 131, 135, 74, 103] := by
+  rw [← turboshake128_ff_06_model, turboshake128_eq _ _ _ (by norm_num) (by norm_num)]; rfl
+
+set_option maxRecDepth 100000 in
+theorem turboshake256_empty_model : turboshake256 0x1f 64 [] =
+    [54, 122, 50, 157, 175, 234, 135, 28, 120, 2, 236, 103, 249, 5, 174, 19, 197, 118, 149, 220,
+     44, 102, 99, 198, 16, 53, 245, 154, 24, 248, 231, 219, 17, 237, 192, 225, 46, 145, 234, 96,
+     235, 107, 50, 223, 6, 221, 127, 0, 47, 186, 250, 187, 110, 19, 236, 28, 194, 13, 153, 85,
+     71, 96, 13, 176] := by
+  decide +kernel
+
+/-- RFC 9861: `TurboSHAKE256(M = 00^0, D = 1F, 64) = 367a329d…47600db0`. -/
+theorem TurboSHAKE256_empty : RFC9861.TurboSHAKE256 [] 0x1F 64 = bytesToBits
+    [54, 122, 50, 157, 175, 234, 135, 28, 120, 2, 236, 103, 249, 5, 174, 19, 197, 118, 149, 220,
+     44, 102, 99, 198, 16, 53, 245, 154, 24, 248, 231, 219, 17, 237, 192, 225, 46, 145, 234, 96,
+     235, 107, 50, 223, 6, 221, 127, 0, 47, 186, 250, 187, 110, 19, 236, 28, 194, 13, 153, 85,
+     71, 96, 13, 176] := by
+  rw [← turboshake256_empty_model, turboshake256_eq _ _ _ (by norm_num) (by norm_num)]; rfl
 
 /-! ## FIPS 198-1 HMAC, RFC 4231 test case 1 -/
 

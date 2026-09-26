@@ -10,6 +10,13 @@
   and `slhdsa` take the same change and stay textual copies. They are held to
   every vector of RFC 9861, Section 5, but its 24 MB input, and to answers
   from pycryptodome at the rate boundaries.
+- Extend the Lean proofs to TurboSHAKE. `permute_from first` is proved to be
+  KECCAK-p[1600, 24 − first] and the sponge theorems to hold over any
+  permutation, so `turboshake128` and `turboshake256` are RFC 9861
+  TurboSHAKE128 and TurboSHAKE256 for every input, output length and domain
+  byte in `0x01`–`0x7F`. RFC 9861's padding is proved to be FIPS 202 pad10*1,
+  `Mlkem.Rfc9861` to reject every other domain and a negative length, and
+  three RFC 9861 known answers to hold for the transcribed specification.
 - Add a machine-checked verification of every implementation in `formal/`.
   Lean 4 proofs show that the ML-KEM, ML-DSA and SLH-DSA engines and their
   Keccak, SHA-2, HMAC and MGF1 primitives match FIPS 203, 204, 205, 202,

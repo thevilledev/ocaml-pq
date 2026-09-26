@@ -2,11 +2,12 @@ import OcamlPq.Hash.KeccakPermute
 import OcamlPq.Hash.SpongeLemmas
 
 /-!
-# The absorbing phase of `sponge`
+# The absorbing phase of `sponge_with`
 
-`absorb_eq`: the state that `lib/keccak.ml` `sponge` holds after absorbing
-the input (lines 88–101) is, as a FIPS 202 string, the state `S` of
-Algorithm 8 after step 6, for `N = M ‖ ds` and `pad = pad10*1`, whenever the
+`absorb_spec`: the state that `lib/keccak.ml` `sponge_with ~permute` holds
+after absorbing the input (lines 93–106) is, as a FIPS 202 string, the state
+`S` of Algorithm 8 after step 6, for `f` the function that `permute` computes
+(`Implements`), `N = M ‖ ds` and `pad = pad10*1`, whenever the
 suffix byte encodes `ds` followed by the first `1` of the padding
 (`SuffixOK`). In particular the byte-level tail
 (`tail.(rem) ← suffix`, `tail.(rate−1) ← tail.(rate−1) lor 0x80`), including
@@ -133,7 +134,7 @@ end padding
 
 /-! ## The byte-level tail block -/
 
-/-- The tail block that `sponge` builds (`lib/keccak.ml` lines 94–99). -/
+/-- The tail block that `sponge` builds (`lib/keccak.ml` lines 99–104). -/
 def tailBlock (rate suffix : ℕ) (input : List UInt8) : List UInt8 :=
   let fullBlocks := input.length / rate
   let rem := input.length % rate
@@ -142,10 +143,11 @@ def tailBlock (rate suffix : ℕ) (input : List UInt8) : List UInt8 :=
   let tail := tail.set rem (UInt8.ofNat suffix)
   tail.set (rate - 1) (UInt8.ofNat (tail[rate - 1]!.toNat ||| 0x80))
 
-theorem absorb_eq_tail (rate suffix : ℕ) (input : List UInt8) :
-    absorb rate suffix input =
-      permute (xorBlock ((List.range (input.length / rate)).foldl (fun st block =>
-        permute (xorBlock st (stringSub input (block * rate) rate))) (Array.replicate 25 0))
+theorem absorb_eq_tail (perm : Array (BitVec 64) → Array (BitVec 64)) (rate suffix : ℕ)
+    (input : List UInt8) :
+    absorb perm rate suffix input =
+      perm (xorBlock ((List.range (input.length / rate)).foldl (fun st block =>
+        perm (xorBlock st (stringSub input (block * rate) rate))) (Array.replicate 25 0))
         (tailBlock rate suffix input)) := rfl
 
 theorem tailBlock_length (rate suffix : ℕ) (input : List UInt8) :
@@ -307,16 +309,18 @@ theorem stringSub_length (M : List UInt8) (r i : ℕ) (hi : i < M.length / r) :
   simp only [stringSub, List.length_take, List.length_drop]
   omega
 
-/-- **Absorbing.** After `sponge` has absorbed the full input blocks and the
-padded tail block (`lib/keccak.ml` lines 88–101), its state, as a FIPS 202
-string, is the `S` of Algorithm 8 after step 6 for `N = M ‖ ds`,
-`pad = pad10*1` and `r = 8 · rate`. -/
-theorem absorb_spec (r suffix : ℕ) (ds : Bits) (M : List UInt8) (hr : 0 < r) (hr8 : r % 8 = 0)
-    (hr200 : r ≤ 200) (hs : SuffixOK suffix ds) :
-    (absorb r suffix M).size = 25 ∧
-    laneBits (absorb r suffix M) =
+/-- **Absorbing.** After `sponge_with ~permute:perm` has absorbed the full
+input blocks and the padded tail block (`lib/keccak.ml` lines 93–106), its
+state, as a FIPS 202 string, is the `S` of Algorithm 8 after step 6 for the
+function `f` that `perm` computes, `N = M ‖ ds`, `pad = pad10*1` and
+`r = 8 · rate`. -/
+theorem absorb_spec {perm : Array (BitVec 64) → Array (BitVec 64)} {f : Bits → Bits}
+    (hp : Implements perm f) (r suffix : ℕ) (ds : Bits) (M : List UInt8) (hr : 0 < r)
+    (hr8 : r % 8 = 0) (hr200 : r ≤ 200) (hs : SuffixOK suffix ds) :
+    (absorb perm r suffix M).size = 25 ∧
+    laneBits (absorb perm r suffix M) =
       (List.range ((padded r M ds).length / (8 * r))).foldl
-        (fun S i => KeccakF (xorBits S (((padded r M ds).drop (i * (8 * r))).take (8 * r) ++
+        (fun S i => f (xorBits S (((padded r M ds).drop (i * (8 * r))).take (8 * r) ++
           List.replicate (b - 8 * r) false)))
         (List.replicate b false) := by
   have hlenP : (padded r M ds).length = (M.length / r + 1) * (8 * r) :=
@@ -325,19 +329,19 @@ theorem absorb_spec (r suffix : ℕ) (ds : Bits) (M : List UInt8) (hr : 0 < r) (
     absorb_eq_tail]
   simp only [List.foldl_cons, List.foldl_nil]
   have hA := foldl_rel (List.range (M.length / r))
-    (fun st block => permute (xorBlock st (stringSub M (block * r) r)))
-    (fun S i => KeccakF (xorBits S (((padded r M ds).drop (i * (8 * r))).take (8 * r) ++
+    (fun st block => perm (xorBlock st (stringSub M (block * r) r)))
+    (fun S i => f (xorBits S (((padded r M ds).drop (i * (8 * r))).take (8 * r) ++
       List.replicate (b - 8 * r) false)))
     laneBits (fun st => st.size = 25)
     (fun st i hi hst => by
       have hi' := List.mem_range.mp hi
-      refine ⟨permute_size _ (by rw [xorBlock_size]; exact hst), ?_⟩
-      rw [permute_eq_KeccakF _ (by rw [xorBlock_size]; exact hst),
+      refine ⟨hp.size _ (by rw [xorBlock_size]; exact hst), ?_⟩
+      rw [hp.bits _ (by rw [xorBlock_size]; exact hst),
         laneBits_xorBlock _ hst _ r (stringSub_length M r i hi') hr8 hr200,
         padded_block_full r M ds i hi'])
     (Array.replicate 25 0) (by simp)
-  refine ⟨permute_size _ (by rw [xorBlock_size]; exact hA.1), ?_⟩
-  rw [permute_eq_KeccakF _ (by rw [xorBlock_size]; exact hA.1),
+  refine ⟨hp.size _ (by rw [xorBlock_size]; exact hA.1), ?_⟩
+  rw [hp.bits _ (by rw [xorBlock_size]; exact hA.1),
     laneBits_xorBlock _ hA.1 _ r (tailBlock_length r suffix M) hr8 hr200, hA.2,
     laneBits_replicate_zero, padded_block_last r suffix M ds hr hs]
   rfl

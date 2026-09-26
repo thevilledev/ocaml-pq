@@ -118,6 +118,16 @@ file and fails if any other axiom appears.
 #print axioms OcamlPq.Hash.Keccak.shake256_prefix
 #print axioms OcamlPq.Hash.Keccak.sponge_final_state
 #print axioms OcamlPq.Hash.Keccak.fips202Shake128_neg
+#print axioms OcamlPq.Hash.Keccak.permuteFrom_eq_KeccakP
+#print axioms OcamlPq.Hash.Keccak.spongeWith_eq_of
+#print axioms OcamlPq.Hash.Keccak.turboSHAKE_eq_pad101
+#print axioms OcamlPq.Hash.Keccak.turboshake128_eq
+#print axioms OcamlPq.Hash.Keccak.turboshake256_eq
+#print axioms OcamlPq.Hash.Keccak.turboshake128_prefix
+#print axioms OcamlPq.Hash.Keccak.turboshake256_prefix
+#print axioms OcamlPq.Hash.Keccak.rfc9861Turboshake128_ok
+#print axioms OcamlPq.Hash.Keccak.rfc9861Turboshake256_ok
+#print axioms OcamlPq.Hash.Keccak.rfc9861Turboshake128_domain
 #print axioms OcamlPq.Hash.Sha2.sha256Constants_eq
 #print axioms OcamlPq.Hash.Sha2.sha512Constants_eq
 #print axioms OcamlPq.Hash.Sha2.sha256H0_eq
@@ -129,6 +139,8 @@ file and fails if any other axiom appears.
 #print axioms OcamlPq.Hash.Sha2.mgf1Sha256_eq
 #print axioms OcamlPq.Hash.Sha2.mgf1Sha512_eq
 #print axioms OcamlPq.Hash.KAT.SHA3_256_empty
+#print axioms OcamlPq.Hash.KAT.TurboSHAKE128_empty
+#print axioms OcamlPq.Hash.KAT.TurboSHAKE256_empty
 #print axioms OcamlPq.Hash.KAT.SHA256_abc
 #print axioms OcamlPq.Hash.KAT.SHA512_abc
 

@@ -3,8 +3,9 @@ import Mathlib
 /-!
 # Model of `lib/keccak.ml`
 
-A literal Lean transcription of the OCaml Keccak-f[1600] permutation and
-sponge in `lib/keccak.ml`.
+A literal Lean transcription of the OCaml Keccak permutation `permute_from`
+and the sponge `sponge_with` in `lib/keccak.ml`, and of the functions defined
+from them: `permute`, `sponge`, SHA3-256, SHA3-512, SHAKE and TurboSHAKE.
 
 Representation choices:
 
@@ -61,7 +62,7 @@ def rotl (x : BitVec 64) (n : ℕ) : BitVec 64 :=
   if n = 0 then x else (x <<< n) ||| (x >>> (64 - n))
 
 /-- The three scratch arrays `c`, `d`, `b` of `permute` together with the
-state `a`; `lib/keccak.ml` lines 31–33 allocate them once, outside the round
+state `a`; `lib/keccak.ml` lines 34–36 allocate them once, outside the round
 loop, so their contents carry over from one round to the next. -/
 structure PermState where
   a : Array (BitVec 64)
@@ -69,22 +70,22 @@ structure PermState where
   d : Array (BitVec 64)
   b : Array (BitVec 64)
 
-/-- `lib/keccak.ml` lines 35–41: `c.(x) <- a.(x) ⊕ a.(x+5) ⊕ … ⊕ a.(x+20)`. -/
+/-- `lib/keccak.ml` lines 38–44: `c.(x) <- a.(x) ⊕ a.(x+5) ⊕ … ⊕ a.(x+20)`. -/
 def thetaCLoop (a cc : Array (BitVec 64)) : Array (BitVec 64) :=
   (List.range 5).foldl (fun cc x =>
     cc.set! x (a[x]! ^^^ (a[x + 5]! ^^^ (a[x + 10]! ^^^ (a[x + 15]! ^^^ a[x + 20]!))))) cc
 
-/-- `lib/keccak.ml` lines 42–44:
+/-- `lib/keccak.ml` lines 45–47:
 `d.(x) <- c.((x + 4) mod 5) ⊕ rotl c.((x + 1) mod 5) 1`. -/
 def thetaDLoop (cc d : Array (BitVec 64)) : Array (BitVec 64) :=
   (List.range 5).foldl (fun d x => d.set! x (cc[(x + 4) % 5]! ^^^ rotl (cc[(x + 1) % 5]!) 1)) d
 
-/-- `lib/keccak.ml` lines 45–49: `a.(x + 5y) <- a.(x + 5y) ⊕ d.(x)`. -/
+/-- `lib/keccak.ml` lines 48–52: `a.(x + 5y) <- a.(x + 5y) ⊕ d.(x)`. -/
 def thetaALoop (a d : Array (BitVec 64)) : Array (BitVec 64) :=
   (List.range 5).foldl (fun a y => (List.range 5).foldl (fun a x =>
     a.set! (x + 5 * y) (a[x + 5 * y]! ^^^ d[x]!)) a) a
 
-/-- `lib/keccak.ml` lines 50–56:
+/-- `lib/keccak.ml` lines 53–59:
 `b.(new_x + 5 new_y) <- rotl a.(x + 5y) rotation.(x + 5y)` with
 `new_x = y`, `new_y = (2x + 3y) mod 5`. -/
 def rhoPiLoop (a b : Array (BitVec 64)) : Array (BitVec 64) :=
@@ -93,15 +94,15 @@ def rhoPiLoop (a b : Array (BitVec 64)) : Array (BitVec 64) :=
     let newY := (2 * x + 3 * y) % 5
     b.set! (newX + 5 * newY) (rotl (a[x + 5 * y]!) (rotation[x + 5 * y]!))) b) b
 
-/-- `lib/keccak.ml` lines 57–64:
+/-- `lib/keccak.ml` lines 60–67:
 `a.(x + 5y) <- b.(x + 5y) ⊕ (¬b.((x+1) mod 5 + 5y) ∧ b.((x+2) mod 5 + 5y))`. -/
 def chiLoop (a b : Array (BitVec 64)) : Array (BitVec 64) :=
   (List.range 5).foldl (fun a y => (List.range 5).foldl (fun a x =>
     a.set! (x + 5 * y)
       (b[x + 5 * y]! ^^^ ((~~~(b[(x + 1) % 5 + 5 * y]!)) &&& b[(x + 2) % 5 + 5 * y]!))) a) a
 
-/-- One iteration of the `for round = 0 to 23` loop, `lib/keccak.ml`
-lines 35–65. -/
+/-- One iteration of the `for round = first to 23` loop, `lib/keccak.ml`
+lines 37–69. -/
 def permRound (s : PermState) (round : ℕ) : PermState :=
   let cc := thetaCLoop s.a s.c
   let d := thetaDLoop cc s.d
@@ -111,12 +112,16 @@ def permRound (s : PermState) (round : ℕ) : PermState :=
   let a := a.set! 0 (a[0]! ^^^ roundConstants[round]!)
   { a := a, c := cc, d := d, b := b }
 
-/-- `permute`, `lib/keccak.ml` lines 30–66. The OCaml function mutates its
-argument; the model returns the final contents of `a`. -/
-def permute (a : Array (BitVec 64)) : Array (BitVec 64) :=
+/-- `permute_from first`, `lib/keccak.ml` lines 33–69: rounds `first` to 23.
+The OCaml function mutates its argument; the model returns the final contents
+of `a`. -/
+def permuteFrom (first : ℕ) (a : Array (BitVec 64)) : Array (BitVec 64) :=
   let s : PermState :=
     { a := a, c := Array.replicate 5 0, d := Array.replicate 5 0, b := Array.replicate 25 0 }
-  ((List.range 24).foldl permRound s).a
+  ((List.range' first (24 - first)).foldl permRound s).a
+
+/-- `permute`, `lib/keccak.ml` line 71: `permute_from 0`. -/
+def permute (a : Array (BitVec 64)) : Array (BitVec 64) := permuteFrom 0 a
 
 /-- `Int64.of_int (Char.code ch)`: a byte zero-extended to 64 bits. -/
 def int64OfByte (ch : UInt8) : BitVec 64 := BitVec.ofNat 64 ch.toNat
@@ -124,15 +129,15 @@ def int64OfByte (ch : UInt8) : BitVec 64 := BitVec.ofNat 64 ch.toNat
 /-- `Char.unsafe_chr (Int64.to_int v)` for `0 ≤ v < 256`: the low byte. -/
 def byteOfInt64 (v : BitVec 64) : UInt8 := UInt8.ofNat v.toNat
 
-/-- `load64_le`, `lib/keccak.ml` lines 68–74. -/
+/-- `load64_le`, `lib/keccak.ml` lines 73–79. -/
 def load64Le (s : List UInt8) (off : ℕ) : BitVec 64 :=
   (List.range 8).foldl (fun r i => r ||| (int64OfByte (s[off + i]!) <<< (8 * i))) 0
 
-/-- `store64_le`, `lib/keccak.ml` lines 76–80. -/
+/-- `store64_le`, `lib/keccak.ml` lines 81–85. -/
 def store64Le (b : List UInt8) (off : ℕ) (x : BitVec 64) : List UInt8 :=
   (List.range 8).foldl (fun b i => b.set (off + i) (byteOfInt64 ((x >>> (8 * i)) &&& 0xff#64))) b
 
-/-- `xor_block`, `lib/keccak.ml` lines 82–85. -/
+/-- `xor_block`, `lib/keccak.ml` lines 87–90. -/
 def xorBlock (state : Array (BitVec 64)) (block : List UInt8) : Array (BitVec 64) :=
   (List.range (block.length / 8)).foldl (fun st i =>
     st.set! i (st[i]! ^^^ load64Le block (8 * i))) state
@@ -146,15 +151,16 @@ def blitString (src : List UInt8) (srcoff : ℕ) (dst : List UInt8) (dstoff len 
     List UInt8 :=
   (List.range len).foldl (fun d i => d.set (dstoff + i) (src[srcoff + i]!)) dst
 
-/-- The squeeze `while` loop, `lib/keccak.ml` lines 103–113. Arguments:
-the state, the output buffer, `!produced`, and the contents that each fresh
+/-- The squeeze `while` loop, `lib/keccak.ml` lines 109–118, with the
+permutation `perm` that `sponge_with` receives. Arguments: the state, the output buffer, `!produced`, and the contents that each fresh
 `Bytes.create rate` block holds before it is filled (`blockJunk p` in the
 iteration that starts with `!produced = p`, so it may differ between
 iterations). Returns
 the final state, output buffer and `!produced`. `fuel` bounds the number of
 iterations; `squeeze_fuel_enough` shows the bound used by `sponge` is never
 reached. -/
-def squeezeLoop (rate outputLength : ℕ) (blockJunk : ℕ → List UInt8) :
+def squeezeLoop (perm : Array (BitVec 64) → Array (BitVec 64)) (rate outputLength : ℕ)
+    (blockJunk : ℕ → List UInt8) :
     ℕ → Array (BitVec 64) → List UInt8 → ℕ → Array (BitVec 64) × List UInt8 × ℕ
   | 0, state, out, produced => (state, out, produced)
   | fuel + 1, state, out, produced =>
@@ -164,48 +170,63 @@ def squeezeLoop (rate outputLength : ℕ) (blockJunk : ℕ → List UInt8) :
         (blockJunk produced)
       let out := blitString block 0 out produced take
       let produced := produced + take
-      let state := if produced < outputLength then permute state else state
-      squeezeLoop rate outputLength blockJunk fuel state out produced
+      let state := if produced < outputLength then perm state else state
+      squeezeLoop perm rate outputLength blockJunk fuel state out produced
     else (state, out, produced)
 
-/-- The absorbing phase of `sponge`, `lib/keccak.ml` lines 88–101: the state
-after the final (padded) block has been absorbed and permuted. -/
-def absorb (rate suffix : ℕ) (input : List UInt8) : Array (BitVec 64) :=
+/-- The absorbing phase of `sponge_with`, `lib/keccak.ml` lines 93–106: the
+state after the final (padded) block has been absorbed and permuted by `perm`. -/
+def absorb (perm : Array (BitVec 64) → Array (BitVec 64)) (rate suffix : ℕ) (input : List UInt8) :
+    Array (BitVec 64) :=
   let state : Array (BitVec 64) := Array.replicate 25 0
   let fullBlocks := input.length / rate
   let state := (List.range fullBlocks).foldl (fun st block =>
-    permute (xorBlock st (stringSub input (block * rate) rate))) state
+    perm (xorBlock st (stringSub input (block * rate) rate))) state
   let rem := input.length % rate
   let tail := List.replicate rate (0 : UInt8)
   let tail := blitString input (fullBlocks * rate) tail 0 rem
   let tail := tail.set rem (UInt8.ofNat suffix)
   let tail := tail.set (rate - 1) (UInt8.ofNat (tail[rate - 1]!.toNat ||| 0x80))
-  permute (xorBlock state tail)
+  perm (xorBlock state tail)
 
-/-- `sponge`, `lib/keccak.ml` lines 87–115, with the unspecified contents of
-`Bytes.create output_length` (`outJunk`) and of each `Bytes.create rate`
-(`blockJunk`) as parameters. The final `Bytes.fill tail 0 rate '\000'`
-(line 114) only scrubs a buffer that is no longer read and is omitted. -/
-def spongeWith (rate suffix outputLength : ℕ) (outJunk : List UInt8)
-    (blockJunk : ℕ → List UInt8) (input : List UInt8) : List UInt8 :=
-  let state := absorb rate suffix input
-  (squeezeLoop rate outputLength blockJunk (outputLength + 1) state outJunk 0).2.1
+/-- `sponge_with ~permute:perm`, `lib/keccak.ml` lines 92–120, with the
+unspecified contents of `Bytes.create output_length` (`outJunk`) and of each
+`Bytes.create rate` (`blockJunk`) as parameters. The final
+`Bytes.fill tail 0 rate '\000'` (line 119) only scrubs a buffer that is no
+longer read and is omitted. -/
+def spongeWith (perm : Array (BitVec 64) → Array (BitVec 64)) (rate suffix outputLength : ℕ)
+    (outJunk : List UInt8) (blockJunk : ℕ → List UInt8) (input : List UInt8) : List UInt8 :=
+  let state := absorb perm rate suffix input
+  (squeezeLoop perm rate outputLength blockJunk (outputLength + 1) state outJunk 0).2.1
 
-/-- `sponge` with zero-filled `Bytes.create` buffers (the theorems show the
-result does not depend on this choice). -/
+/-- `sponge_with ~permute:perm` with zero-filled `Bytes.create` buffers (the
+theorems show the result does not depend on this choice). -/
+def spongeZ (perm : Array (BitVec 64) → Array (BitVec 64)) (rate suffix outputLength : ℕ)
+    (input : List UInt8) : List UInt8 :=
+  spongeWith perm rate suffix outputLength (List.replicate outputLength 0)
+    (fun _ => List.replicate rate 0) input
+
+/-- `sponge`, `lib/keccak.ml` lines 122–123: `sponge_with ~permute`. -/
 def sponge (rate suffix outputLength : ℕ) (input : List UInt8) : List UInt8 :=
-  spongeWith rate suffix outputLength (List.replicate outputLength 0) (fun _ => List.replicate rate 0)
-    input
+  spongeZ permute rate suffix outputLength input
 
-/-- `sha3_256`, `lib/keccak.ml` line 117. -/
+/-- `sha3_256`, `lib/keccak.ml` line 125. -/
 def sha3_256 (input : List UInt8) : List UInt8 := sponge 136 0x06 32 input
-/-- `sha3_512`, `lib/keccak.ml` line 118. -/
+/-- `sha3_512`, `lib/keccak.ml` line 126. -/
 def sha3_512 (input : List UInt8) : List UInt8 := sponge 72 0x06 64 input
-/-- `shake128`, `lib/keccak.ml` line 119. -/
+/-- `shake128`, `lib/keccak.ml` line 127. -/
 def shake128 (outputLength : ℕ) (input : List UInt8) : List UInt8 :=
   sponge 168 0x1f outputLength input
-/-- `shake256`, `lib/keccak.ml` line 120. -/
+/-- `shake256`, `lib/keccak.ml` line 128. -/
 def shake256 (outputLength : ℕ) (input : List UInt8) : List UInt8 :=
   sponge 136 0x1f outputLength input
+
+/-- `turboshake128`, `lib/keccak.ml` lines 132–133:
+`sponge_with ~permute:(permute_from 12) ~rate:168 ~suffix:domain`. -/
+def turboshake128 (domain outputLength : ℕ) (input : List UInt8) : List UInt8 :=
+  spongeZ (permuteFrom 12) 168 domain outputLength input
+/-- `turboshake256`, `lib/keccak.ml` lines 134–135. -/
+def turboshake256 (domain outputLength : ℕ) (input : List UInt8) : List UInt8 :=
+  spongeZ (permuteFrom 12) 136 domain outputLength input
 
 end OcamlPq.Hash.Keccak

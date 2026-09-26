@@ -3,10 +3,11 @@ import OcamlPq.Hash.SpongeAbsorb
 /-!
 # The squeezing phase of `sponge`
 
-* `squeezeLoop_spec`: the OCaml `while` loop (`lib/keccak.ml` lines 103–113)
+* `squeezeLoop_spec`: the OCaml `while` loop (`lib/keccak.ml` lines 109–118)
   fills byte `k` of the output with byte `k mod rate` of the rate part of
   `permute^[k / rate] S`, stops with `!produced = output_length`, and leaves
-  the state at `permute^[(output_length − 1) / rate] S`: exactly one
+  the state at `permute^[(output_length − 1) / rate] S`, for whichever
+  permutation `sponge_with` was given: exactly one
   permutation between consecutive rate-blocks and none after the last.
 * `squeeze_spec`: FIPS 202 Algorithm 8 steps 7–10 output bit `t` of
   `Z = Trunc_r(S) ‖ Trunc_r(f(S)) ‖ …`, i.e. bit `t mod r` of `f^[t / r](S)`.
@@ -21,9 +22,11 @@ open FIPS202
 def blockByte (s : Array (BitVec 64)) (j : ℕ) : UInt8 :=
   byteOfInt64 ((s[j / 8]! >>> (8 * (j % 8))) &&& 0xff#64)
 
-/-- Output byte `k` of the sponge started from state `a0`. -/
-def outByte (a0 : Array (BitVec 64)) (rate k : ℕ) : UInt8 :=
-  blockByte (permute^[k / rate] a0) (k % rate)
+/-- Output byte `k` of the sponge with permutation `perm` started from state
+`a0`. -/
+def outByte (perm : Array (BitVec 64) → Array (BitVec 64)) (a0 : Array (BitVec 64))
+    (rate k : ℕ) : UInt8 :=
+  blockByte (perm^[k / rate] a0) (k % rate)
 
 /-- The block-building loop `for i = 0 to rate/8 - 1 do store64_le block (8i) state.(i)`. -/
 theorem squeezeBlock_spec (n : ℕ) (state : Array (BitVec 64)) (junk : List UInt8) :
@@ -48,41 +51,43 @@ theorem squeezeBlock_spec (n : ℕ) (state : Array (BitVec 64)) (junk : List UIn
       · rw [ite_eq_left h2, ite_eq_left (by omega)]
       · rw [ite_eq_right h2, ite_eq_right (by omega)]
 
-theorem squeezeLoop_done (rate L : ℕ) (junk : ℕ → List UInt8) (fuel : ℕ) (st : Array (BitVec 64))
-    (out : List UInt8) : squeezeLoop rate L junk fuel st out L = (st, out, L) := by
+theorem squeezeLoop_done (perm : Array (BitVec 64) → Array (BitVec 64)) (rate L : ℕ)
+    (junk : ℕ → List UInt8) (fuel : ℕ) (st : Array (BitVec 64)) (out : List UInt8) :
+    squeezeLoop perm rate L junk fuel st out L = (st, out, L) := by
   cases fuel <;> simp [squeezeLoop]
 
 /-- **The squeeze loop.** Started after `m` complete blocks (state
-`permute^[m] a0`, `!produced = m · rate < L`, the first `m · rate` output bytes
+`perm^[m] a0`, `!produced = m · rate < L`, the first `m · rate` output bytes
 already correct) with enough fuel, the loop ends with `!produced = L`, every
-output byte `k < L` equal to `outByte a0 rate k`, and the state
-`permute^[(L − 1) / rate] a0`. -/
-theorem squeezeLoop_spec (rate L : ℕ) (hr : 0 < rate) (hr8 : rate % 8 = 0)
+output byte `k < L` equal to `outByte perm a0 rate k`, and the state
+`perm^[(L − 1) / rate] a0`. -/
+theorem squeezeLoop_spec (perm : Array (BitVec 64) → Array (BitVec 64)) (rate L : ℕ)
+    (hr : 0 < rate) (hr8 : rate % 8 = 0)
     (junk : ℕ → List UInt8) (hj : ∀ p, (junk p).length = rate) (a0 : Array (BitVec 64)) :
     ∀ fuel m (out : List UInt8), m * rate < L → L - m * rate < fuel → out.length = L →
-      (∀ k < m * rate, out[k]! = outByte a0 rate k) →
-      (squeezeLoop rate L junk fuel (permute^[m] a0) out (m * rate)).2.2 = L ∧
-      (squeezeLoop rate L junk fuel (permute^[m] a0) out (m * rate)).2.1.length = L ∧
-      (∀ k < L, (squeezeLoop rate L junk fuel (permute^[m] a0) out (m * rate)).2.1[k]! =
-        outByte a0 rate k) ∧
-      (squeezeLoop rate L junk fuel (permute^[m] a0) out (m * rate)).1 =
-        permute^[(L - 1) / rate] a0 := by
+      (∀ k < m * rate, out[k]! = outByte perm a0 rate k) →
+      (squeezeLoop perm rate L junk fuel (perm^[m] a0) out (m * rate)).2.2 = L ∧
+      (squeezeLoop perm rate L junk fuel (perm^[m] a0) out (m * rate)).2.1.length = L ∧
+      (∀ k < L, (squeezeLoop perm rate L junk fuel (perm^[m] a0) out (m * rate)).2.1[k]! =
+        outByte perm a0 rate k) ∧
+      (squeezeLoop perm rate L junk fuel (perm^[m] a0) out (m * rate)).1 =
+        perm^[(L - 1) / rate] a0 := by
   intro fuel
   induction fuel with
   | zero => intro m out h1 h2; omega
   | succ fuel ih =>
     intro m out h1 h2 h3 h4
     have h88 : 8 * (rate / 8) = rate := by omega
-    obtain ⟨hbl, hbg⟩ := squeezeBlock_spec (rate / 8) (permute^[m] a0) (junk (m * rate))
+    obtain ⟨hbl, hbg⟩ := squeezeBlock_spec (rate / 8) (perm^[m] a0) (junk (m * rate))
     have hj' := hj (m * rate)
     simp only [squeezeLoop, ite_eq_left h1]
     generalize hblk : (List.range (rate / 8)).foldl
-      (fun blk i => store64Le blk (8 * i) ((permute^[m] a0)[i]!)) (junk (m * rate)) = blk at hbl hbg
+      (fun blk i => store64Le blk (8 * i) ((perm^[m] a0)[i]!)) (junk (m * rate)) = blk at hbl hbg
     generalize htake : min rate (L - m * rate) = take
     have hmr : (m + 1) * rate = m * rate + rate := by ring
     -- the bytes written by this iteration
     have hnew : ∀ k, m * rate ≤ k → k < m * rate + take → k < L →
-        (blitString blk 0 out (m * rate) take)[k]! = outByte a0 rate k := by
+        (blitString blk 0 out (m * rate) take)[k]! = outByte perm a0 rate k := by
       intro k hk1 hk2 hk3
       rw [blitString_get, ite_eq_left ⟨hk1, hk2, by omega⟩, hbg, ite_eq_left (by omega)]
       have hdiv : k / rate = m := Nat.div_eq_of_lt_le (by omega) (by omega)
@@ -98,7 +103,7 @@ theorem squeezeLoop_spec (rate L : ℕ) (hr : 0 < rate) (hr8 : rate % 8 = 0)
     · -- another block follows: one permutation, then continue with `m + 1`
       have ht : take = rate := by omega
       rw [ite_eq_left hA, show m * rate + take = (m + 1) * rate by rw [ht, hmr],
-        ← Function.iterate_succ_apply' permute m a0]
+        ← Function.iterate_succ_apply' perm m a0]
       refine ih (m + 1) _ (by omega) (by omega) (by rw [blitString_length, h3]) ?_
       intro k hk
       by_cases hk' : k < m * rate
