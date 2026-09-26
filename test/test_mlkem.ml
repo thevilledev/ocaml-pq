@@ -148,6 +148,139 @@ let test_fips202 () =
       | _ -> Alcotest.failf "%s accepted a negative output length" name)
     [ "shake128", Mlkem.Fips202.shake128; "shake256", Mlkem.Fips202.shake256 ]
 
+(* TurboSHAKE (RFC 9861). [ptn n] is the pattern of RFC 9861, Section 5: the
+   bytes [i mod 251]. The RFC's cases are its Section 5 in full except for the
+   24 MB input ptn(17^6); the edge cases put the input on either side of the
+   rate, where the padding changes shape, run the output over several squeezed
+   blocks, and let the domain byte 0x7F share the last byte with the padding
+   bit. Long outputs are compared by their last 32 bytes. *)
+let ptn n = String.init n (fun i -> Char.chr (i mod 251))
+
+(* Generated with pycryptodome 3.23, whose own suite holds it to the
+   RFC 9861 vectors. *)
+let turboshake128_rfc =
+  [
+    ("", 0x1f, 32, "1e415f1c5983aff2169217277d17bb538cd945a397ddec541f1ce41af2c1b74c");
+    ("", 0x1f, 64, "1e415f1c5983aff2169217277d17bb538cd945a397ddec541f1ce41af2c1b74c3e8ccae2a4dae56c84a04c2385c03c15e8193bdf58737363321691c05462c8df");
+    ("", 0x1f, 10032, "a3b9b0385900ce761f22aed548e754da10a5242d62e8c658e3f3a923a7555607");
+    ((ptn 1), 0x1f, 32, "55cedd6f60af7bb29a4042ae832ef3f58db7299f893ebb9247247d856958daa9");
+    ((ptn 17), 0x1f, 32, "9c97d036a3bac819db70ede0ca554ec6e4c2a1a4ffbfd9ec269ca6a111161233");
+    ((ptn 289), 0x1f, 32, "96c77c279e0126f7fc07c9b07f5cdae1e0be60bdbe10620040e75d7223a624d2");
+    ((ptn 4913), 0x1f, 32, "d4976eb56bcf118520582b709f73e1d6853e001fdaf80e1b13e0d0599d5fb372");
+    ((ptn 83521), 0x1f, 32, "da67c7039e98bf530cf7a37830c6664e14cbab7f540f58403b1b82951318ee5c");
+    ((ptn 1419857), 0x1f, 32, "b97a906fbf83ef7c812517abf3b2d0aea0c4f60318ce11cf103925127f59eecd");
+    ((String.make 3 '\xff'), 0x01, 32, "bf323f940494e88ee1c540fe660be8a0c93f43d15ec006998462fa994eed5dab");
+    ((String.make 1 '\xff'), 0x06, 32, "8ec9c66465ed0d4a6c35d13506718d687a25cb05c74cca1e42501abd83874a67");
+    ((String.make 3 '\xff'), 0x07, 32, "b658576001cad9b1e5f399a9f77723bba05458042d68206f7252682dba3663ed");
+    ((String.make 7 '\xff'), 0x0b, 32, "8deeaa1aec47ccee569f659c21dfa8e112db3cee37b18178b2acd805b799cc37");
+    ((String.make 1 '\xff'), 0x30, 32, "553122e2135e363c3292bed2c6421fa232bab03daa07c7d6636603286506325b");
+    ((String.make 3 '\xff'), 0x7f, 32, "16274cc656d44cefd422395d0f9053bda6d28e122aba15c765e5ad0e6eaf26f9");
+  ]
+
+let turboshake128_edge =
+  [
+    ((ptn 167), 0x1f, 64, "87dcddbaf9edd6f3b53a7c7a37bc11ae214b6b537ac6cca7bf638ac3152b04a9");
+    ((ptn 167), 0x7f, 509, "15dd631c05228400963d04fc6a6535cd46a5e031eb697895f2cc163dbace7dab");
+    ((ptn 168), 0x1f, 64, "fd8cefecb9248166f0a9a6ee5992397c06c70bc843ba0076b3ec42192ef71cce");
+    ((ptn 168), 0x7f, 509, "4d6aa34e9198b86879eb0089bf8043335abc5f17b97c23fd7b5614faf131e156");
+    ((ptn 169), 0x1f, 64, "64e288084227faaa693d90c7919dfdb17344d4bcc6cb40f2b592d62c8fff7729");
+    ((ptn 169), 0x7f, 509, "fbc7df7598fe6b5663d0b493e553d76b746225aa01dce5b8ee9420519465b6ad");
+    ((ptn 336), 0x1f, 64, "4218776d549feb9f241f27e7ea8f87ed5b9f5a3186fc23fe0f5c00f113c5c6a1");
+    ((ptn 336), 0x7f, 509, "2d9124f78d89e7de9ea0f734be110eee4e921774c6c90891decf0291cb19669e");
+  ]
+
+let turboshake256_rfc =
+  [
+    ("", 0x1f, 64, "367a329dafea871c7802ec67f905ae13c57695dc2c6663c61035f59a18f8e7db11edc0e12e91ea60eb6b32df06dd7f002fbafabb6e13ec1cc20d995547600db0");
+    ("", 0x1f, 64, "367a329dafea871c7802ec67f905ae13c57695dc2c6663c61035f59a18f8e7db11edc0e12e91ea60eb6b32df06dd7f002fbafabb6e13ec1cc20d995547600db0");
+    ("", 0x1f, 10032, "abefa11630c661269249742685ec082f207265dccf2f43534e9c61ba0c9d1d75");
+    ((ptn 1), 0x1f, 64, "3e1712f928f8eaf1054632b2aa0a246ed8b0c378728f60bc970410155c28820e90cc90d8a3006aa2372c5c5ea176b0682bf22bae7467ac94f74d43d39b0482e2");
+    ((ptn 17), 0x1f, 64, "b3bab0300e6a191fbe6137939835923578794ea54843f5011090fa2f3780a9e5cb22c59d78b40a0fbff9e672c0fbe0970bd2c845091c6044d687054da5d8e9c7");
+    ((ptn 289), 0x1f, 64, "66b810db8e90780424c0847372fdc95710882fde31c6df75beb9d4cd9305cfcae35e7b83e8b7e6eb4b78605880116316fe2c078a09b94ad7b8213c0a738b65c0");
+    ((ptn 4913), 0x1f, 64, "c74ebc919a5b3b0dd1228185ba02d29ef442d69d3d4276a93efe0bf9a16a7dc0cd4eabadab8cd7a5edd96695f5d360abe09e2c6511a3ec397da3b76b9e1674fb");
+    ((ptn 83521), 0x1f, 64, "02cc3a8897e6f4f6ccb6fd46631b1f5207b66c6de9c7b55b2d1a23134a170afdac234eaba9a77cff88c1f020b73724618c5687b362c430b248cd38647f848a1d");
+    ((ptn 1419857), 0x1f, 64, "add53b06543e584b5823f626996aee50fe45ed15f20243a7165485acb4aa76b4ffda75cedf6d8cdc95c332bd56f4b986b58bb17d1778bfc1b1a97545cdf4ec9f");
+    ((String.make 3 '\xff'), 0x01, 64, "d21c6fbbf587fa2282f29aea620175fb0257413af78a0b1b2a87419ce031d933ae7a4d383327a8a17641a34f8a1d1003ad7da6b72dba84bb62fef28f62f12424");
+    ((String.make 1 '\xff'), 0x06, 64, "738d7b4e37d18b7f22ad1b5313e357e3dd7d07056a26a303c433fa3533455280f4f5a7d4f700efb437fe6d281405e07be32a0a972e22e63adc1b090daefe004b");
+    ((String.make 3 '\xff'), 0x07, 64, "18b3b5b7061c2e67c1753a00e6ad7ed7ba1c906cf93efb7092eaf27fbeebb755ae6e292493c110e48d260028492b8e09b5500612b8f2578985ded5357d00ec67");
+    ((String.make 7 '\xff'), 0x0b, 64, "bb36764951ec97e9d85f7ee9a67a7718fc005cf42556be79ce12c0bde50e5736d6632b0d0dfb202d1bbb8ffe3dd74cb00834fa756cb03471bab13a1e2c16b3c0");
+    ((String.make 1 '\xff'), 0x30, 64, "f3fe12873d34bcbb2e608779d6b70e7f86bec7e90bf113cbd4fdd0c4e2f4625e148dd7ee1a52776cf77f240514d9ccfc3b5ddab8ee255e39ee389072962c111a");
+    ((String.make 3 '\xff'), 0x7f, 64, "abe569c1f77ec340f02705e7d37c9ab7e155516e4a6a150021d70b6fac0bb40c069f9a9828a0d575cd99f9bae435ab1acf7ed9110ba97ce0388d074bac768776");
+  ]
+
+let turboshake256_edge =
+  [
+    ((ptn 135), 0x1f, 64, "8ccc694d4407f1dafb514f50c26f6a6fe8d1a2c09449413f7eeb3579be011e71");
+    ((ptn 135), 0x7f, 413, "fec4c417dbb89481d4284bf72c89259dbb1ab93c5d000b6accf78fb8c1a8056d");
+    ((ptn 136), 0x1f, 64, "753a6687d226f3db8bf0823cce510553c56832a87240a4b3bfab340a7a5df352");
+    ((ptn 136), 0x7f, 413, "e74744b7abd0d35e0bcf5455055669370c32283170308ca3cbea450cf7c9a943");
+    ((ptn 137), 0x1f, 64, "0b55cd24ec32c5c5344b4ca9ffd43973924a5dcd18fecd36e0a5ba4f58520394");
+    ((ptn 137), 0x7f, 413, "b1fe38979b605be5e7b1fd680f8e69eaf58b1683d2f9770802ef79fa4d3eb10b");
+    ((ptn 272), 0x1f, 64, "bf1a7a50bba32935a16f9dc0c8844b2258e2f39dc7ac1b928936a3bcb9d1c9ee");
+    ((ptn 272), 0x7f, 413, "6701a3be1511e2731737f52725b20cbcd4a78a0d7988d6ff1703439561359b2d");
+  ]
+
+let test_rfc9861 () =
+  let check name turboshake (input, domain, output_length, expected) =
+    let label =
+      Printf.sprintf "%s(%d bytes, D=0x%02x, %d)" name (String.length input)
+        domain output_length
+    in
+    let output = turboshake ~domain ~output_length input in
+    if String.length output <> output_length then
+      Alcotest.failf "%s returned %d bytes" label (String.length output);
+    let expected = decode_hex expected in
+    let tail = String.length expected in
+    check_bytes label expected (String.sub output (output_length - tail) tail);
+    check_bytes (label ^ " prefix")
+      (turboshake ~domain ~output_length:(output_length / 2) input)
+      (String.sub output 0 (output_length / 2))
+  in
+  let turboshake128 ~domain ~output_length input =
+    Mlkem.Rfc9861.turboshake128 ~domain ~output_length input
+  and turboshake256 ~domain ~output_length input =
+    Mlkem.Rfc9861.turboshake256 ~domain ~output_length input
+  in
+  List.iter (check "TurboSHAKE128" turboshake128)
+    (turboshake128_rfc @ turboshake128_edge);
+  List.iter (check "TurboSHAKE256" turboshake256)
+    (turboshake256_rfc @ turboshake256_edge);
+  (* The default domain is 0x1F, and a domain differs from SHAKE. *)
+  check_bytes "TurboSHAKE128 default domain"
+    (Mlkem.Rfc9861.turboshake128 ~domain:0x1f ~output_length:32 "")
+    (Mlkem.Rfc9861.turboshake128 ~output_length:32 "");
+  check_bytes "TurboSHAKE256 default domain"
+    (Mlkem.Rfc9861.turboshake256 ~domain:0x1f ~output_length:64 "")
+    (Mlkem.Rfc9861.turboshake256 ~output_length:64 "");
+  if Mlkem.Rfc9861.turboshake128 ~output_length:32 ""
+     = Mlkem.Fips202.shake128 ~output_length:32 ""
+  then Alcotest.fail "TurboSHAKE128 is SHAKE128";
+  List.iter
+    (fun (name, turboshake) ->
+      let expect_invalid label f =
+        match f () with
+        | exception Invalid_argument message ->
+            let prefix = "Mlkem.Rfc9861." ^ name in
+            if
+              not
+                (String.length message >= String.length prefix
+                && String.sub message 0 (String.length prefix) = prefix)
+            then Alcotest.failf "%s %s: unexpected message %S" name label message
+        | _ -> Alcotest.failf "%s accepted %s" name label
+      in
+      expect_invalid "a negative output length" (fun () ->
+          turboshake ~domain:0x1f ~output_length:(-1) "");
+      List.iter
+        (fun domain ->
+          expect_invalid (Printf.sprintf "domain 0x%02x" domain) (fun () ->
+              turboshake ~domain ~output_length:1 ""))
+        [ 0x00; 0x80; 0xff; -1; 0x100 ];
+      List.iter
+        (fun domain ->
+          ignore (turboshake ~domain ~output_length:1 ""))
+        [ 0x01; 0x7f ])
+    [ ("turboshake128", turboshake128); ("turboshake256", turboshake256) ]
+
 let test_nist_keygen () =
   read_blocks (vector_path "mlkem768-keygen.txt")
   |> List.iteri (fun index vector ->
@@ -627,7 +760,8 @@ let () =
   Alcotest.run "mlkem"
     [ "primitives",
       [ Alcotest.test_case "Keccak known answers" `Quick test_keccak;
-        Alcotest.test_case "public SHAKE known answers" `Quick test_fips202 ];
+        Alcotest.test_case "public SHAKE known answers" `Quick test_fips202;
+        Alcotest.test_case "public TurboSHAKE known answers" `Quick test_rfc9861 ];
       "FIPS 203 - ML-KEM-512",
       [ Alcotest.test_case "seed and decapsulation corpus" `Slow test_seeded_vectors_512;
         Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_512;

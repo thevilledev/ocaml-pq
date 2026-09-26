@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Export TurboSHAKE128 and TurboSHAKE256 of RFC 9861 from `mlkem` as
+  `Mlkem.Rfc9861`, with a domain separation byte that defaults to `0x1F`. The
+  HPKE KDFs of `draft-ietf-hpke-pq` are built on them, and no other OCaml
+  package provides them. They run the Keccak code of ML-KEM, now able to start
+  its permutation at round 12 for KECCAK-p[1600, 12]; the copies in `mldsa`
+  and `slhdsa` take the same change and stay textual copies. They are held to
+  every vector of RFC 9861, Section 5, but its 24 MB input, and to answers
+  from pycryptodome at the rate boundaries.
 - Add a machine-checked verification of every implementation in `formal/`.
   Lean 4 proofs show that the ML-KEM, ML-DSA and SLH-DSA engines and their
   Keccak, SHA-2, HMAC and MGF1 primitives match FIPS 203, 204, 205, 202,

@@ -48,21 +48,32 @@ FIPS 202, FIPS 180-4, FIPS 198-1 and RFC 8017.
 
 ## The two copies of `keccak.ml`
 
-`mldsa/mldsa_keccak.ml` and lines 1–118 of `slhdsa/slhdsa_hash.ml` are
-textual copies of `lib/keccak.ml` minus its last two lines (the `sha3_256` and
-`sha3_512` definitions). Checked mechanically with
+`mldsa/mldsa_keccak.ml` and lines 1–126 of `slhdsa/slhdsa_hash.ml` are
+textual copies of `lib/keccak.ml` minus its `sha3_256`, `sha3_512`,
+`turboshake128` and `turboshake256` definitions. Checked mechanically with
 
 ```
 diff lib/keccak.ml mldsa/mldsa_keccak.ml
-sed -n 1,118p slhdsa/slhdsa_hash.ml | diff lib/keccak.ml -
+sed -n 1,126p slhdsa/slhdsa_hash.ml | diff lib/keccak.ml -
 ```
 
 both of which print only
 ```
-117,118d116
+125,126d124
 < let sha3_256 input = sponge ~rate:136 ~suffix:0x06 ~output_length:32 input
 < let sha3_512 input = sponge ~rate:72 ~suffix:0x06 ~output_length:64 input
+129,135d126
+< 
+< (* TurboSHAKE (RFC 9861): the sponge of SHAKE over KECCAK-p[1600, 12], with the
+<    domain separation byte [domain] as its suffix. *)
+< let turboshake128 ~domain ~output_length input =
+<   sponge_with ~permute:(permute_from 12) ~rate:168 ~suffix:domain ~output_length input
+< let turboshake256 ~domain ~output_length input =
+<   sponge_with ~permute:(permute_from 12) ~rate:136 ~suffix:domain ~output_length input
 ```
+The model's `permute` is `permute_from 0` and its `sponge` is `sponge_with`
+with that permutation; `turboshake128` and `turboshake256`, which run
+`permute_from 12`, are not modelled yet.
 so every theorem about `sponge`, `shake128`, `shake256` here applies verbatim
 to `Mldsa_keccak` and `Slhdsa_hash`.
 -/
