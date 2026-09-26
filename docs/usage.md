@@ -19,10 +19,8 @@ parameter sets in total. The [SLH-DSA interface](../slhdsa/slhdsa.mli) lists
 every module.
 
 The packages are independently installable and share a release version.
-For installation from this checkout, see the [README](../README.md#install).
-Once 0.1.1 is accepted into the public opam repository, individual packages
-can be installed with `opam install mlkem`, `opam install mldsa`, or
-`opam install slhdsa`.
+Install each one from opam with `opam install mlkem`, `opam install mldsa`, or
+`opam install slhdsa`; see the [README](../README.md#install) for details.
 
 These are cryptographic primitives. TLS, X.509, HPKE, and other protocol
 integrations are outside this repository.
