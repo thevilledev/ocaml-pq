@@ -1,0 +1,3 @@
+# Keep the Lean/TLA+ proofs out of GitHub's language statistics so the
+# repository is classified by its OCaml sources.
+formal/** linguist-documentation
