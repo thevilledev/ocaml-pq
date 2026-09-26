@@ -27,11 +27,14 @@ let rotl x n =
   if n = 0 then x
   else Int64.logor (Int64.shift_left x n) (Int64.shift_right_logical x (64 - n))
 
-let permute a =
+(* Rounds [first] to 23 of KECCAK-f[1600], which is KECCAK-p[1600, 24 - first]
+   (FIPS 202, Section 3.3): the whole permutation from round 0, the one of
+   TurboSHAKE (RFC 9861) from round 12. *)
+let permute_from first a =
   let c = Array.make 5 0L in
   let d = Array.make 5 0L in
   let b = Array.make 25 0L in
-  for round = 0 to 23 do
+  for round = first to 23 do
     for x = 0 to 4 do
       c.(x) <-
         Int64.logxor a.(x)
@@ -65,6 +68,8 @@ let permute a =
     a.(0) <- Int64.logxor a.(0) round_constants.(round)
   done
 
+let permute a = permute_from 0 a
+
 let load64_le s off =
   let r = ref 0L in
   for i = 0 to 7 do
@@ -84,7 +89,7 @@ let xor_block state block =
     state.(i) <- Int64.logxor state.(i) (load64_le block (8 * i))
   done
 
-let sponge ~rate ~suffix ~output_length input =
+let sponge_with ~permute ~rate ~suffix ~output_length input =
   let state = Array.make 25 0L in
   let full_blocks = String.length input / rate in
   for block = 0 to full_blocks - 1 do
@@ -113,6 +118,9 @@ let sponge ~rate ~suffix ~output_length input =
   done;
   Bytes.fill tail 0 rate '\000';
   Bytes.unsafe_to_string out
+
+let sponge ~rate ~suffix ~output_length input =
+  sponge_with ~permute ~rate ~suffix ~output_length input
 
 let shake128 ~output_length input = sponge ~rate:168 ~suffix:0x1f ~output_length input
 let shake256 ~output_length input = sponge ~rate:136 ~suffix:0x1f ~output_length input

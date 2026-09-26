@@ -61,9 +61,19 @@ let seed = Mlkem.Fips202.shake256 ~output_length:64 keying_material
 ```
 
 `shake128` has the same shape. Both take the whole input at once, and the
-outputs for one input are prefixes of each other. They are the only hash
-functions this repository exports: `digestif` already provides SHA3-256 and
-SHA3-512.
+outputs for one input are prefixes of each other.
+
+`Mlkem.Rfc9861` exports TurboSHAKE128 and TurboSHAKE256 of RFC 9861, the same
+sponges over the 12-round KECCAK-p[1600, 12] with a domain separation byte,
+which the HPKE KDFs of `draft-ietf-hpke-pq` are built on:
+
+```ocaml
+let okm = Mlkem.Rfc9861.turboshake256 ~domain:0x1f ~output_length:32 input
+```
+
+The domain byte defaults to `0x1F` and must lie in `0x01`-`0x7F`. These and
+`Mlkem.Fips202` are the only hash functions this repository exports: `digestif`
+already provides SHA3-256 and SHA3-512.
 
 ## Sign and verify messages
 

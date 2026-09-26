@@ -59,6 +59,10 @@ that adopts ML-KEM tends to need them: the HPKE specification of ML-KEM derives
 key pairs with SHAKE256. `digestif`, the usual source of hash functions, has
 SHA-3 but not the FIPS 202 extendable-output functions, so exporting the ones
 ML-KEM already runs on keeps such a protocol from carrying a Keccak of its own.
+`Mlkem.Rfc9861` exports TurboSHAKE for the same reason: the HPKE KDFs of
+`draft-ietf-hpke-pq` use it, and no other OCaml package provides it. It is the
+same sponge over the last 12 rounds of the same permutation, so it adds a
+parameter to the Keccak code rather than a second copy of it.
 The export is deliberately narrow. SHA3-256 and SHA3-512 stay internal, because
 `digestif` provides them, and `mldsa` and `slhdsa` export no hash functions, so
 the three packages still share no code and no dependency.

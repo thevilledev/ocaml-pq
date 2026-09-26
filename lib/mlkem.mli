@@ -35,3 +35,26 @@ module Fips202 : sig
       SHAKE256 over [input], which has 256 bits of security strength. A
       negative [output_length] raises [Invalid_argument]. *)
 end
+
+module Rfc9861 : sig
+  (** The TurboSHAKE extendable-output functions of RFC 9861.
+
+      TurboSHAKE is SHAKE with the Keccak permutation cut from 24 rounds to
+      12, KECCAK-p[1600, 12], which makes it about twice as fast, and with a
+      caller-chosen domain separation byte. The HPKE KDFs of
+      draft-ietf-hpke-pq are built on it. The functions share the Keccak code
+      of ML-KEM, and have its properties: one-shot, and for inputs of one
+      length the same operations whatever the input holds. *)
+
+  val turboshake128 : ?domain:int -> output_length:int -> string -> string
+  (** [turboshake128 ~domain ~output_length input] is the first
+      [output_length] bytes of TurboSHAKE128 over [input] with the domain
+      separation byte [domain], which defaults to [0x1F] and must lie in
+      [0x01]-[0x7F]. It has a capacity of 256 bits, and the security strength
+      of SHAKE128. A negative [output_length] or a [domain] out of range raises
+      [Invalid_argument]. *)
+
+  val turboshake256 : ?domain:int -> output_length:int -> string -> string
+  (** [turboshake256 ~domain ~output_length input] is TurboSHAKE256, with a
+      capacity of 512 bits, and otherwise as {!turboshake128}. *)
+end
