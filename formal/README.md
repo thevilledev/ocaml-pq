@@ -30,6 +30,14 @@ The proofs cover the source-level behaviour of the OCaml code. They say
 nothing about timing, cache or other side channels, and they do not verify
 the OCaml compiler or runtime. See [Trust base](#trust-base).
 
+**Not yet covered: TurboSHAKE.** `Mlkem.Rfc9861` (RFC 9861) came after the
+proofs. It runs the same sponge over `permute_from 12`, the last twelve rounds
+of the permutation, which the models do not yet describe. The model of
+`permute` is the loop of `permute_from` from round 0, and the model of
+`sponge` the body of `sponge_with` with that permutation, so every result
+below about Keccak, SHA-3 and SHAKE still holds as stated. TurboSHAKE is held
+to the vectors of RFC 9861 by the test suite.
+
 ## What is proved
 
 The table lists the principal results; `lean/OcamlPq/Audit.lean` names the
