@@ -1,6 +1,6 @@
 # Changes
 
-## 0.2.0 (2026-09-26)
+## 0.2.0 (2026-09-27)
 
 - Export TurboSHAKE128 and TurboSHAKE256 (RFC 9861) from `mlkem` as
   `Mlkem.Rfc9861`, for the HPKE KDFs of `draft-ietf-hpke-pq`.
