@@ -1,18 +1,15 @@
 # Changes
 
-## Unreleased
-
-- Extend the Lean proofs to TurboSHAKE: `turboshake128` and `turboshake256`
-  are proved to be RFC 9861 TurboSHAKE128 and TurboSHAKE256 for every input,
-  output length and domain byte in `0x01`–`0x7F`, and `Mlkem.Rfc9861` to
-  reject every other domain and a negative length.
-
 ## 0.2.0 (2026-09-26)
 
 - Export TurboSHAKE128 and TurboSHAKE256 (RFC 9861) from `mlkem` as
   `Mlkem.Rfc9861`, for the HPKE KDFs of `draft-ietf-hpke-pq`.
 - Add Lean 4 proofs that every implementation matches its standard, and TLA+
   models checked with TLC, in `formal/`. No bug was found.
+- Extend the Lean proofs to TurboSHAKE: `turboshake128` and `turboshake256`
+  are proved to be RFC 9861 TurboSHAKE128 and TurboSHAKE256 for every input,
+  output length and domain byte in `0x01`–`0x7F`, and `Mlkem.Rfc9861` to
+  reject every other domain and a negative length.
 - ML-DSA: follow FIPS 204 in `UseHint` for hints other than 0 or 1, reject
   nonces that do not fit in 16 bits, and refuse to encode more than omega
   hints. None is reachable through the public API.
