@@ -6,6 +6,8 @@ import OcamlPq.Hash.SpongeLemmas
 import OcamlPq.Hash.SpongeAbsorb
 import OcamlPq.Hash.SpongeSqueeze
 import OcamlPq.Hash.Sponge
+import OcamlPq.Hash.TurboShakeSpec
+import OcamlPq.Hash.TurboShake
 import OcamlPq.Hash.Sha2Spec
 import OcamlPq.Hash.Sha2Model
 import OcamlPq.Hash.Sha2Constants
@@ -18,19 +20,28 @@ import OcamlPq.Hash.KAT
 import OcamlPq.Hash.Safety
 
 /-!
-# Hash primitives: Keccak / SHA-3 / SHAKE, SHA-256, SHA-512, HMAC, MGF1
+# Hash primitives: Keccak / SHA-3 / SHAKE / TurboSHAKE, SHA-256, SHA-512, HMAC, MGF1
 
 Formal verification of the in-house hash code of the library against
-FIPS 202, FIPS 180-4, FIPS 198-1 and RFC 8017.
+FIPS 202, RFC 9861, FIPS 180-4, FIPS 198-1 and RFC 8017.
 
 ## Main theorems
 
 * `Keccak.permute_eq_KeccakF` — `permute` (`lib/keccak.ml`) is KECCAK-f[1600]
-  on every 25-lane state (lane `x + 5y`, bit `z` least significant first).
+  on every 25-lane state (lane `x + 5y`, bit `z` least significant first);
+  `Keccak.permuteFrom_eq_KeccakP` — `permute_from first` is
+  KECCAK-p[1600, 24 − first], so `permute_from 12` is TurboSHAKE's
+  KECCAK-p[1600, 12].
 * `Keccak.sha3_256_eq`, `sha3_512_eq`, `shake128_eq`, `shake256_eq` — the four
   entry points are FIPS 202 SHA3-256/SHA3-512/SHAKE128/SHAKE256 on every input
   (and every output length for SHAKE); `Keccak.spongeWith_eq` for the generic
-  `sponge`.
+  `sponge`, and `Keccak.spongeWith_eq_of` for `sponge_with` over any
+  permutation.
+* `Keccak.turboshake128_eq`, `turboshake256_eq` — `turboshake128` and
+  `turboshake256` are RFC 9861 TurboSHAKE128/TurboSHAKE256 on every input,
+  domain byte in `0x01`–`0x7F` and output length;
+  `Keccak.turboSHAKE_eq_pad101` — RFC 9861's padding is `pad10*1`;
+  `Keccak.rfc9861Turboshake128_ok` etc. — `Mlkem.Rfc9861` and its errors.
 * `Keccak.shake128_prefix`, `shake256_prefix` — prefix consistency of SHAKE
   output lengths; `Keccak.sponge_final_state` — permutation count of the
   squeeze loop; `Keccak.fips202Shake128_neg` — `Mlkem.Fips202` rejects negative
@@ -71,9 +82,6 @@ both of which print only
 < let turboshake256 ~domain ~output_length input =
 <   sponge_with ~permute:(permute_from 12) ~rate:136 ~suffix:domain ~output_length input
 ```
-The model's `permute` is `permute_from 0` and its `sponge` is `sponge_with`
-with that permutation; `turboshake128` and `turboshake256`, which run
-`permute_from 12`, are not modelled yet.
-so every theorem about `sponge`, `shake128`, `shake256` here applies verbatim
-to `Mldsa_keccak` and `Slhdsa_hash`.
+so every theorem about `permute_from`, `sponge_with`, `sponge`, `shake128`
+and `shake256` here applies verbatim to `Mldsa_keccak` and `Slhdsa_hash`.
 -/

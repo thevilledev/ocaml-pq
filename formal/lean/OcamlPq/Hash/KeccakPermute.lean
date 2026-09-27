@@ -2,12 +2,13 @@ import OcamlPq.Hash.KeccakConstants
 import OcamlPq.Hash.ArrayLemmas
 
 /-!
-# `permute` is Keccak-f[1600]
+# `permute` is Keccak-f[1600], `permute_from 12` is Keccak-p[1600, 12]
 
-The main theorem, `permute_eq_KeccakF`: for every 25-lane state `a`,
-`laneBits (permute a) = KeccakF (laneBits a)`, where `laneBits` reads lane
-`i = x + 5y` as the 64 bits `z = 0 … 63` (least significant first), placed at
-string positions `64 i + z` (FIPS 202 §3.1.2: `A[x, y, z] = S[w(5y + x) + z]`).
+The main theorem, `permuteFrom_eq_KeccakP`: for every 25-lane state `a` and
+`first ≤ 24`, `laneBits (permuteFrom first a) = KeccakP (24 − first) (laneBits a)`,
+where `laneBits` reads lane `i = x + 5y` as the 64 bits `z = 0 … 63` (least
+significant first), placed at string positions `64 i + z` (FIPS 202 §3.1.2:
+`A[x, y, z] = S[w(5y + x) + z]`). For `first = 0` it is `permute_eq_KeccakF`.
 
 The proof has three layers:
 
@@ -16,7 +17,7 @@ The proof has three layers:
 2. those characterisations are compared bit by bit with FIPS 202 θ, ρ, π, χ,
    ι (`permRound_toState`), using `rho_eq`, `roundConstants_eq_RC` and
    `getLsbD_rotl`;
-3. the 24 rounds and the string ↔ state conversions are assembled.
+3. the rounds `first … 23` and the string ↔ state conversions are assembled.
 -/
 
 namespace OcamlPq.Hash.Keccak
@@ -177,16 +178,24 @@ theorem foldl_permRound (l : List ℕ) (hl : ∀ r ∈ l, r < 24) (s : PermState
     rw [← permRound_toState s h r (hl r (by simp))]
     exact ih (fun r' hr' => hl r' (by simp [hr'])) _ (permRound_wf s h r)
 
+theorem range'_lt (first r : ℕ) (hr : r ∈ List.range' first (24 - first)) : r < 24 := by
+  rw [List.mem_range'_1] at hr
+  omega
+
+/-- `permute_from` preserves the array size. -/
+theorem permuteFrom_size (first : ℕ) (a : Array (BitVec 64)) (ha : a.size = 25) :
+    (permuteFrom first a).size = 25 :=
+  (foldl_permRound _ (range'_lt first) _ ⟨ha, rfl, rfl, rfl⟩).1.a
+
+/-- `permute_from first` runs the FIPS 202 rounds `Rnd(·, first)`, …,
+`Rnd(·, 23)` on the state array. -/
+theorem permuteFrom_toState (first : ℕ) (a : Array (BitVec 64)) (ha : a.size = 25) :
+    toState (permuteFrom first a) = (List.range' first (24 - first)).foldl Rnd (toState a) :=
+  (foldl_permRound _ (range'_lt first) _ ⟨ha, rfl, rfl, rfl⟩).2
+
 /-- `permute` preserves the array size. -/
 theorem permute_size (a : Array (BitVec 64)) (ha : a.size = 25) : (permute a).size = 25 :=
-  (foldl_permRound (List.range 24) (fun _ hr => List.mem_range.mp hr) _
-    ⟨ha, rfl, rfl, rfl⟩).1.a
-
-/-- `permute` runs the 24 FIPS 202 rounds `Rnd(·, 0)`, …, `Rnd(·, 23)` on
-the state array. -/
-theorem permute_toState (a : Array (BitVec 64)) (ha : a.size = 25) :
-    toState (permute a) = (List.range 24).foldl Rnd (toState a) :=
-  (foldl_permRound (List.range 24) (fun _ hr => List.mem_range.mp hr) _ ⟨ha, rfl, rfl, rfl⟩).2
+  permuteFrom_size 0 a ha
 
 /-- The 1600-bit FIPS 202 string of a 25-lane state: position `64 i + z`
 is bit `z` of lane `i`. -/
@@ -228,13 +237,48 @@ theorem toString_toState (a : Array (BitVec 64)) : FIPS202.toString (toState a) 
   congr 2
   omega
 
+/-- **`permute_from first` is Keccak-p[1600, 24 − first].** For every
+25-lane state and `first ≤ 24`, the FIPS 202 string of `permute_from first a`
+is `KECCAK-p[1600, 24 − first]` of the string of `a`: Algorithm 7 runs the
+round indices `12 + 2ℓ − nr = first` to 23. -/
+theorem permuteFrom_eq_KeccakP (first : ℕ) (hfirst : first ≤ 24) (a : Array (BitVec 64))
+    (ha : a.size = 25) :
+    laneBits (permuteFrom first a) = KeccakP (24 - first) (laneBits a) := by
+  rw [KeccakP, ofString_laneBits]
+  simp only [show 12 + 2 * ℓ - (24 - first) = first by simp only [ℓ]; omega]
+  rw [← permuteFrom_toState first a ha, toString_toState]
+
 /-- **`permute` is Keccak-f[1600].** For every 25-lane state, the FIPS 202
 string of `permute a` is `KECCAK-f[1600]` (= `KECCAK-p[1600, 24]`) of the
 string of `a`. -/
 theorem permute_eq_KeccakF (a : Array (BitVec 64)) (ha : a.size = 25) :
-    laneBits (permute a) = KeccakF (laneBits a) := by
-  rw [KeccakF, KeccakP, ofString_laneBits]
-  simp only [ℓ, show 12 + 2 * 6 - 24 = 0 from rfl, ← List.range_eq_range']
-  rw [← permute_toState a ha, toString_toState]
+    laneBits (permute a) = KeccakF (laneBits a) :=
+  permuteFrom_eq_KeccakP 0 (by norm_num) a ha
+
+/-! ## Permutations as functions on FIPS 202 strings -/
+
+/-- `perm` computes `F` on 25-lane states: it keeps 25 lanes, and the FIPS 202
+string of its result is `F` of the string of its argument. The sponge theorems
+hold for every such pair. -/
+structure Implements (perm : Array (BitVec 64) → Array (BitVec 64)) (F : Bits → Bits) : Prop where
+  size : ∀ a : Array (BitVec 64), a.size = 25 → (perm a).size = 25
+  bits : ∀ a : Array (BitVec 64), a.size = 25 → laneBits (perm a) = F (laneBits a)
+
+theorem permuteFrom_implements (first : ℕ) (hfirst : first ≤ 24) :
+    Implements (permuteFrom first) (KeccakP (24 - first)) :=
+  ⟨permuteFrom_size first, permuteFrom_eq_KeccakP first hfirst⟩
+
+theorem permute_implements : Implements permute KeccakF :=
+  ⟨permute_size, permute_eq_KeccakF⟩
+
+/-- `perm^[m]` computes `F^[m]`. -/
+theorem Implements.iterate {perm : Array (BitVec 64) → Array (BitVec 64)} {F : Bits → Bits}
+    (hp : Implements perm F) (a : Array (BitVec 64)) (ha : a.size = 25) (m : ℕ) :
+    (perm^[m] a).size = 25 ∧ laneBits (perm^[m] a) = F^[m] (laneBits a) := by
+  induction m with
+  | zero => simp only [Function.iterate_zero, id]; exact ⟨ha, trivial⟩
+  | succ m ih =>
+    rw [Function.iterate_succ_apply', Function.iterate_succ_apply']
+    exact ⟨hp.size _ ih.1, by rw [hp.bits _ ih.1, ih.2]⟩
 
 end OcamlPq.Hash.Keccak

@@ -5,8 +5,8 @@
 This directory holds a machine-checked verification of every implementation
 in the repository. The FIPS 203, FIPS 204 and FIPS 205 algorithms are covered
 for all 18 parameter sets, together with the hash functions underneath them:
-Keccak (SHA3-256, SHA3-512, SHAKE128, SHAKE256), SHA-256, SHA-512, HMAC and
-MGF1.
+Keccak (SHA3-256, SHA3-512, SHAKE128, SHAKE256, and the TurboSHAKE128 and
+TurboSHAKE256 of RFC 9861), SHA-256, SHA-512, HMAC and MGF1.
 
 Two tools divide the work:
 
@@ -30,14 +30,6 @@ The proofs cover the source-level behaviour of the OCaml code. They say
 nothing about timing, cache or other side channels, and they do not verify
 the OCaml compiler or runtime. See [Trust base](#trust-base).
 
-**Not yet covered: TurboSHAKE.** `Mlkem.Rfc9861` (RFC 9861) came after the
-proofs. It runs the same sponge over `permute_from 12`, the last twelve rounds
-of the permutation, which the models do not yet describe. The model of
-`permute` is the loop of `permute_from` from round 0, and the model of
-`sponge` the body of `sponge_with` with that permutation, so every result
-below about Keccak, SHA-3 and SHAKE still holds as stated. TurboSHAKE is held
-to the vectors of RFC 9861 by the test suite.
-
 ## What is proved
 
 The table lists the principal results; `lean/OcamlPq/Audit.lean` names the
@@ -52,7 +44,7 @@ set and every input.
 | ML-DSA algorithms | `mldsa/mldsa_engine.ml` 328–908 | `MLDSAAlg` | RejNTTPoly, RejBoundedPoly and SampleInBall match FIPS 204 Algorithms 29–31, including their retries. SampleInBall output has exactly τ coefficients equal to ±1. ExpandA, ExpandS, ExpandMask and key generation match their algorithms. Mask nonces never repeat and always fit in 16 bits. The loop returns FIPS Algorithm 7's first accepted attempt within 821 iterations; failure probability is below 2⁻²⁵⁸, and 814 is the smallest cap below 2⁻²⁵⁶. Sign, verify, context handling and key import follow Algorithms 1–3 and 6–8. |
 | Encodings | both engines | `Encoding` | One generic theorem covers the LSB-first bit packer and unpacker for every width. From it, ByteEncode/ByteDecode (FIPS 203), SimpleBitPack/BitPack and their unpackers (FIPS 204) follow. `decode_12` is equivalent to the modulus check. The hint codec equals FIPS 204 Algorithms 20/21 for every (k, ω) and is canonical: an accepted hint section re-encodes to the same bytes, so signatures are not malleable. Key, ciphertext and signature layouts and sizes match both standards. |
 | SLH-DSA | `slhdsa/slhdsa_engine.ml` | `SLHDSA` | The stack-based `treehash` returns the FIPS 205 node and authentication path for every height, leaf index and hash function. `compute_root` inverts it. `message_to_fors_indices` equals base_2b even though its accumulator wraps, at 63, 32 and 31 bits. WOTS+, XMSS, FORS, the hypertree, the ADRS encodings and the §11 hash selection match FIPS 205. Top-level key generation, signing and verification match Algorithms 18–22, and verification accepts every signature the code produces. |
-| Hash functions | `lib/keccak.ml`, `slhdsa/slhdsa_hash.ml` | `Hash` | `permute` is Keccak-f[1600] on every state. The sponge is FIPS 202 SPONGE with pad10*1 and the domain suffixes. SHAKE output is prefix-consistent. SHA-256 and SHA-512 match FIPS 180-4. HMAC matches FIPS 198-1, and MGF1 matches RFC 8017. Round constants, rotation offsets and the SHA-2 constants are derived from their mathematical definitions, not copied. |
+| Hash functions | `lib/keccak.ml`, `lib/mlkem.ml`, `slhdsa/slhdsa_hash.ml` | `Hash` | `permute_from first` is Keccak-p[1600, 24 − first] on every state, so `permute` is Keccak-f[1600]. `sponge_with` is FIPS 202 SPONGE with pad10*1 and the domain suffixes, over whichever permutation it is given. TurboSHAKE128 and TurboSHAKE256 match RFC 9861 for every domain byte in `0x01`–`0x7F`, whose padding is proved to be pad10*1, and `Mlkem.Rfc9861` rejects every other domain and a negative length. SHAKE and TurboSHAKE output is prefix-consistent. SHA-256 and SHA-512 match FIPS 180-4. HMAC matches FIPS 198-1, and MGF1 matches RFC 8017. Round constants, rotation offsets and the SHA-2 constants are derived from their mathematical definitions, not copied. |
 | Loops and state machines | all three engines | `tla/` | 13 TLC models, listed in [`tla/README.md`](tla/README.md). They cover the hint codec over all strings of a small size, treehash and the hypertree traversal, the signing loop at its real bound, the four rejection samplers' retry behaviour, the bit packers at their real widths, FORS index wrap-around, the Keccak sponge, SHA-2 padding and MGF1, and implicit rejection. |
 
 ### End to end
@@ -235,7 +227,7 @@ lake build OcamlPq.SLHDSA
 | `lean/OcamlPq/MLDSAAlg/` | ML-DSA samplers, expansion, key generation, signing loop, interface |
 | `lean/OcamlPq/Encoding/` | Bit packing, ML-KEM and ML-DSA encodings, hint codec, layouts |
 | `lean/OcamlPq/SLHDSA/` | SLH-DSA addresses, base_2b, WOTS+, XMSS, FORS, treehash, hypertree, top level |
-| `lean/OcamlPq/Hash/` | Keccak-f[1600], sponge, SHA-256, SHA-512, HMAC, MGF1, known answers |
+| `lean/OcamlPq/Hash/` | Keccak-p[1600, nr], sponge, TurboSHAKE, SHA-256, SHA-512, HMAC, MGF1, known answers |
 | `lean/OcamlPq/EndToEnd/` | The areas linked into end-to-end theorems for each engine |
 | `lean/OcamlPq/Audit.lean` | Axiom audit of the headline theorems |
 | `tla/` | TLA+ models, their configurations, `check.sh` and a README |

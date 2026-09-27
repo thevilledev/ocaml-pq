@@ -1,5 +1,12 @@
 # Changes
 
+## Unreleased
+
+- Extend the Lean proofs to TurboSHAKE: `turboshake128` and `turboshake256`
+  are proved to be RFC 9861 TurboSHAKE128 and TurboSHAKE256 for every input,
+  output length and domain byte in `0x01`–`0x7F`, and `Mlkem.Rfc9861` to
+  reject every other domain and a negative length.
+
 ## 0.2.0 (2026-09-26)
 
 - Export TurboSHAKE128 and TurboSHAKE256 (RFC 9861) from `mlkem` as

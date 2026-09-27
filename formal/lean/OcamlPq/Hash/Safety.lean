@@ -32,7 +32,7 @@ open Keccak Sha2
 
 /-! ## `lib/keccak.ml` -/
 
-/-- `permute` (lines 30–66): every index into `a`, `b` (25 lanes), `c`, `d`
+/-- `permute_from` (lines 33–69): every index into `a`, `b` (25 lanes), `c`, `d`
 (5 lanes), `rotation` (25) and `round_constants` (24) is in bounds. -/
 theorem permute_indices : ∀ x : Fin 5, ∀ y : Fin 5, ∀ round : Fin 24,
     x.val + 20 < 25 ∧ (x.val + 4) % 5 < 5 ∧ (x.val + 1) % 5 < 5 ∧ x.val + 5 * y.val < 25 ∧
@@ -40,6 +40,14 @@ theorem permute_indices : ∀ x : Fin 5, ∀ y : Fin 5, ∀ round : Fin 24,
     (x.val + 1) % 5 + 5 * y.val < 25 ∧ (x.val + 2) % 5 + 5 * y.val < 25 ∧
     round.val < roundConstants.size ∧ x.val + 5 * y.val < Keccak.rotation.size := by
   decide
+
+/-- The rounds of `permute_from first` (line 37, `for round = first to 23`)
+are below 24 for every `first`, so they are the `round` of `permute_indices`;
+`permute` and TurboSHAKE run it from 0 and from 12. -/
+theorem permuteFrom_rounds (first round : ℕ) (h : round ∈ List.range' first (24 - first)) :
+    round < 24 := by
+  rw [List.mem_range'_1] at h
+  omega
 
 /-- `rotl x n` (lines 26–28) is only called with `n = 1` or `n = rotation.(i)`;
 for each, either `n = 0` (no shift performed) or both `shift_left x n` and
@@ -49,10 +57,10 @@ theorem rotl_shift_amounts : ∀ i : Fin 25,
       1 ≤ 64 - Keccak.rotation[i.val]! ∧ 64 - Keccak.rotation[i.val]! ≤ 63) := by
   decide
 
-/-- `load64_le`/`store64_le` (lines 68–80): shift amounts `8 i ≤ 56`. -/
+/-- `load64_le`/`store64_le` (lines 73–85): shift amounts `8 i ≤ 56`. -/
 theorem load_store_shifts : ∀ i : Fin 8, 8 * i.val ≤ 56 := by decide
 
-/-- `xor_block state block` (lines 82–85) with `|block| ≤ 200`: every
+/-- `xor_block state block` (lines 87–90) with `|block| ≤ 200`: every
 `state.(i)` is in bounds and every `String.unsafe_get block (8 i + k)` of
 `load64_le` is in bounds. -/
 theorem xorBlock_indices (len : ℕ) (hlen : len ≤ 200) (i k : ℕ) (hi : i < len / 8) (hk : k < 8) :
@@ -60,7 +68,7 @@ theorem xorBlock_indices (len : ℕ) (hlen : len ≤ 200) (i k : ℕ) (hi : i < 
   omega
 
 /-- The squeeze loop's `store64_le block (8 i) state.(i)` for `i < rate / 8`
-(lines 107–109): `state.(i)` and every `Bytes.unsafe_set block (8 i + k)` are
+(lines 111–113): `state.(i)` and every `Bytes.unsafe_set block (8 i + k)` are
 in bounds (`|block| = rate ≤ 200`). -/
 theorem squeeze_store_indices (rate : ℕ) (hr : rate ≤ 200) (i k : ℕ) (hi : i < rate / 8)
     (hk : k < 8) : i < 25 ∧ 8 * i + k < rate := by
@@ -72,7 +80,14 @@ theorem sponge_constants : ∀ rate ∈ [168, 136, 72], ∀ suffix ∈ [0x06, 0x
     0x80 < 256 := by
   decide
 
-/-- The `int` values of `sponge` (lines 87–115), for input length `len` and
+/-- The domain byte of TurboSHAKE, which `Mlkem.Rfc9861` checks is in
+`0x01`–`0x7F`, is a valid `Char.unsafe_chr` argument, alone and with the
+padding bit OR-ed in. -/
+theorem turboshake_domain : ∀ domain : Fin 128, 1 ≤ domain.val →
+    domain.val < 256 ∧ domain.val ||| 0x80 < 256 := by
+  decide
+
+/-- The `int` values of `sponge_with` (lines 92–120), for input length `len` and
 `output_length = L ≥ 0`: `String.sub input (block·rate) rate` and
 `Bytes.blit_string input (full·rate) tail 0 rem` are in bounds,
 `Bytes.set tail rem` and `Bytes.get/set tail (rate−1)` are in bounds, every
