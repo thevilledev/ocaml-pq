@@ -1,5 +1,16 @@
 # Changes
 
+## Unreleased
+
+- Shrink release archives from about 21 MB to about 0.3 MB (#15). GitHub's tag
+  archives, which opam downloads, now leave out the test vector corpora and
+  `formal/`. The package tests always check a known-answer subset in
+  `test/kat`, about one case per parameter set and operation, and check the
+  full corpora only from a git checkout. CI runs the package tests from the
+  archive and keeps it under 512 KiB.
+- Document the opam-publish release flow that the releases use. dune-release
+  builds its own archive, which would include the corpora.
+
 ## 0.2.0 (2026-09-27)
 
 - Export TurboSHAKE128 and TurboSHAKE256 (RFC 9861) from `mlkem` as
