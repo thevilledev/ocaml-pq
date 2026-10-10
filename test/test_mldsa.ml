@@ -118,15 +118,18 @@ let raw_field name vector =
 
 let field name vector = decode_hex (raw_field name vector)
 
-let vector_path name =
-  let local = Filename.concat "mldsa_vectors" name in
-  if Sys.file_exists local then local
-  else Filename.concat "test/mldsa_vectors" name
+(* Release archives leave the full corpora out (see .gitattributes) and carry
+   only the known-answer subset in kat/mldsa. Directories are found from the
+   dune test directory or from the repository root. *)
+let directory name =
+  List.find_opt Sys.file_exists [ name; Filename.concat "test" name ]
 
-let wycheproof_path name =
-  let local = Filename.concat "wycheproof/mldsa" name in
-  if Sys.file_exists local then local
-  else Filename.concat "test/wycheproof/mldsa" name
+let kat = Option.value ~default:"kat/mldsa" (directory "kat/mldsa")
+
+(* A corpus is skipped only when its whole directory is absent; a file missing
+   from a present corpus still fails the test that reads it. *)
+let corpus name cases =
+  match directory name with Some dir -> cases dir | None -> []
 
 let result_ok = function
   | Ok value -> value
@@ -452,76 +455,100 @@ let () =
   Alcotest.run "ML-DSA"
     [ ( "encodings",
         [ Alcotest.test_case "16-bit nonces" `Quick test_nonce_encoding ] );
-      ( "ML-DSA-44",
-        [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+      ( "known answers",
+        [ Alcotest.test_case "ML-DSA-44" `Quick (fun () ->
               run_keygen (module M44)
-                (vector_path "mldsa_nist_keygen_44_tests.txt"));
-          Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                (Filename.concat kat "mldsa_nist_keygen_44_tests.txt");
               run_siggen (module M44)
-                (vector_path "mldsa_nist_siggen_44_tests.txt"));
-          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
-              run_wycheproof_sign (module M44) ~seed_key:true
-                (wycheproof_path "mldsa_44_sign_seed_test.txt"));
-          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
-              run_wycheproof_sign (module M44) ~seed_key:false
-                (wycheproof_path "mldsa_44_sign_noseed_test.txt"));
-          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
-              run_wycheproof_verify (module M44)
-                (wycheproof_path "mldsa_44_verify_test.txt"));
-          Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M44));
-          Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_44 ~gamma2:95_232);
-          Alcotest.test_case "hint count bound" `Quick (fun () ->
-              test_hint_limit (module M44) ~c_tilde_bytes:32 ~l:4 ~k:4
-                ~omega:80) ] );
-      ( "ML-DSA-65",
-        [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+                (Filename.concat kat "mldsa_nist_siggen_44_tests.txt"));
+          Alcotest.test_case "ML-DSA-65" `Quick (fun () ->
               run_keygen (module M65)
-                (vector_path "mldsa_nist_keygen_65_tests.txt"));
-          Alcotest.test_case "ExpandS longer-prefix key generation" `Slow
-            (fun () ->
+                (Filename.concat kat "mldsa_nist_keygen_65_tests.txt");
               run_keygen (module M65)
-                (vector_path "mldsa_eta_restart_keygen_65_tests.txt"));
-          Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                (Filename.concat kat "mldsa_eta_restart_keygen_65_tests.txt");
               run_siggen (module M65)
-                (vector_path "mldsa_nist_siggen_65_tests.txt"));
-          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
-              run_wycheproof_sign (module M65) ~seed_key:true
-                (wycheproof_path "mldsa_65_sign_seed_test.txt"));
-          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
-              run_wycheproof_sign (module M65) ~seed_key:false
-                (wycheproof_path "mldsa_65_sign_noseed_test.txt"));
-          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
-              run_wycheproof_verify (module M65)
-                (wycheproof_path "mldsa_65_verify_test.txt"));
-          Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M65));
-          Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_65 ~gamma2:261_888);
-          Alcotest.test_case "hint count bound" `Quick (fun () ->
-              test_hint_limit (module M65) ~c_tilde_bytes:48 ~l:5 ~k:6
-                ~omega:55) ] );
-      ( "ML-DSA-87",
-        [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+                (Filename.concat kat "mldsa_nist_siggen_65_tests.txt"));
+          Alcotest.test_case "ML-DSA-87" `Quick (fun () ->
               run_keygen (module M87)
-                (vector_path "mldsa_nist_keygen_87_tests.txt"));
-          Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                (Filename.concat kat "mldsa_nist_keygen_87_tests.txt");
               run_siggen (module M87)
-                (vector_path "mldsa_nist_siggen_87_tests.txt"));
-          Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
-              run_wycheproof_sign (module M87) ~seed_key:true
-                (wycheproof_path "mldsa_87_sign_seed_test.txt"));
-          Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
-              run_wycheproof_sign (module M87) ~seed_key:false
-                (wycheproof_path "mldsa_87_sign_noseed_test.txt"));
-          Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
-              run_wycheproof_verify (module M87)
-                (wycheproof_path "mldsa_87_verify_test.txt"));
-          Alcotest.test_case "typed API and validation" `Slow (fun () ->
-              test_api (module M87));
-          Alcotest.test_case "UseHint" `Quick (fun () ->
-              test_use_hint Mldsa_for_testing.use_hint_87 ~gamma2:261_888);
-          Alcotest.test_case "hint count bound" `Quick (fun () ->
-              test_hint_limit (module M87) ~c_tilde_bytes:64 ~l:7 ~k:8
-                ~omega:75) ] ) ]
+                (Filename.concat kat "mldsa_nist_siggen_87_tests.txt")) ] );
+      ( "ML-DSA-44",
+        corpus "mldsa_vectors" (fun dir ->
+            [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+                  run_keygen (module M44)
+                    (Filename.concat dir "mldsa_nist_keygen_44_tests.txt"));
+              Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                  run_siggen (module M44)
+                    (Filename.concat dir "mldsa_nist_siggen_44_tests.txt")) ])
+        @ corpus "wycheproof/mldsa" (fun dir ->
+            [ Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M44) ~seed_key:true
+                    (Filename.concat dir "mldsa_44_sign_seed_test.txt"));
+              Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M44) ~seed_key:false
+                    (Filename.concat dir "mldsa_44_sign_noseed_test.txt"));
+              Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+                  run_wycheproof_verify (module M44)
+                    (Filename.concat dir "mldsa_44_verify_test.txt")) ])
+        @ [ Alcotest.test_case "typed API and validation" `Slow (fun () ->
+                test_api (module M44));
+            Alcotest.test_case "UseHint" `Quick (fun () ->
+                test_use_hint Mldsa_for_testing.use_hint_44 ~gamma2:95_232);
+            Alcotest.test_case "hint count bound" `Quick (fun () ->
+                test_hint_limit (module M44) ~c_tilde_bytes:32 ~l:4 ~k:4
+                  ~omega:80) ] );
+      ( "ML-DSA-65",
+        corpus "mldsa_vectors" (fun dir ->
+            [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+                  run_keygen (module M65)
+                    (Filename.concat dir "mldsa_nist_keygen_65_tests.txt"));
+              Alcotest.test_case "ExpandS longer-prefix key generation" `Slow
+                (fun () ->
+                  run_keygen (module M65)
+                    (Filename.concat dir "mldsa_eta_restart_keygen_65_tests.txt"));
+              Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                  run_siggen (module M65)
+                    (Filename.concat dir "mldsa_nist_siggen_65_tests.txt")) ])
+        @ corpus "wycheproof/mldsa" (fun dir ->
+            [ Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M65) ~seed_key:true
+                    (Filename.concat dir "mldsa_65_sign_seed_test.txt"));
+              Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M65) ~seed_key:false
+                    (Filename.concat dir "mldsa_65_sign_noseed_test.txt"));
+              Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+                  run_wycheproof_verify (module M65)
+                    (Filename.concat dir "mldsa_65_verify_test.txt")) ])
+        @ [ Alcotest.test_case "typed API and validation" `Slow (fun () ->
+                test_api (module M65));
+            Alcotest.test_case "UseHint" `Quick (fun () ->
+                test_use_hint Mldsa_for_testing.use_hint_65 ~gamma2:261_888);
+            Alcotest.test_case "hint count bound" `Quick (fun () ->
+                test_hint_limit (module M65) ~c_tilde_bytes:48 ~l:5 ~k:6
+                  ~omega:55) ] );
+      ( "ML-DSA-87",
+        corpus "mldsa_vectors" (fun dir ->
+            [ Alcotest.test_case "NIST key generation" `Slow (fun () ->
+                  run_keygen (module M87)
+                    (Filename.concat dir "mldsa_nist_keygen_87_tests.txt"));
+              Alcotest.test_case "NIST deterministic signatures" `Slow (fun () ->
+                  run_siggen (module M87)
+                    (Filename.concat dir "mldsa_nist_siggen_87_tests.txt")) ])
+        @ corpus "wycheproof/mldsa" (fun dir ->
+            [ Alcotest.test_case "Wycheproof seed signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M87) ~seed_key:true
+                    (Filename.concat dir "mldsa_87_sign_seed_test.txt"));
+              Alcotest.test_case "Wycheproof expanded-key signing" `Slow (fun () ->
+                  run_wycheproof_sign (module M87) ~seed_key:false
+                    (Filename.concat dir "mldsa_87_sign_noseed_test.txt"));
+              Alcotest.test_case "Wycheproof verification" `Slow (fun () ->
+                  run_wycheproof_verify (module M87)
+                    (Filename.concat dir "mldsa_87_verify_test.txt")) ])
+        @ [ Alcotest.test_case "typed API and validation" `Slow (fun () ->
+                test_api (module M87));
+            Alcotest.test_case "UseHint" `Quick (fun () ->
+                test_use_hint Mldsa_for_testing.use_hint_87 ~gamma2:261_888);
+            Alcotest.test_case "hint count bound" `Quick (fun () ->
+                test_hint_limit (module M87) ~c_tilde_bytes:64 ~l:7 ~k:8
+                  ~omega:75) ] ) ]

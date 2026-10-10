@@ -5,6 +5,7 @@
  (modes byte exe)
  (libraries alcotest mlkem mlkem.for_testing)
  (deps
+  (glob_files kat/mlkem/*.txt)
   (glob_files vectors/*.txt)
   (glob_files wycheproof/mlkem/*.txt)))
 
@@ -15,6 +16,7 @@
  (modes byte exe)
  (libraries alcotest mldsa mldsa.for_testing)
  (deps
+  (glob_files kat/mldsa/*.txt)
   (glob_files mldsa_vectors/*.txt)
   (glob_files wycheproof/mldsa/*.txt)))
 
@@ -31,7 +33,9 @@
  (modules test_slhdsa)
  (modes exe)
  (libraries alcotest slhdsa slhdsa.for_testing)
- (deps (glob_files slhdsa_vectors/*.txt)))
+ (deps
+  (glob_files kat/slhdsa/*.txt)
+  (glob_files slhdsa_vectors/*.txt)))
 
 (executable
  (name test_js)
