@@ -1,7 +1,11 @@
 name: CI
 
 on:
+  # Branches are tested through their pull requests; also running on every
+  # branch push would run each job twice.
   push:
+    branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
