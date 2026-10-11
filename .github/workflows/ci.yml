@@ -1,7 +1,11 @@
 name: CI
 
 on:
+  # Branches are tested through their pull requests; also running on every
+  # branch push would run each job twice.
   push:
+    branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -70,6 +74,45 @@ jobs:
         run: opam lint mlkem.opam mldsa.opam slhdsa.opam
       - name: Install from the package definition
         run: opam install . --with-test --with-doc
+
+  archive:
+    name: Release archive
+    runs-on: avrea-ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the known-answer subset against the corpora
+        run: |
+          sh test/kat/import.sh
+          git diff --exit-code -- test/kat
+          test -z "$(git status --porcelain -- test/kat)"
+      - name: Build the archive GitHub serves for a tag
+        run: |
+          git archive --format=tar.gz --prefix=ocaml-pq/ -o "$RUNNER_TEMP/ocaml-pq.tar.gz" HEAD
+          size=$(wc -c < "$RUNNER_TEMP/ocaml-pq.tar.gz")
+          echo "Release archive: $size bytes (budget 524288)"
+          if [ "$size" -gt 524288 ]; then
+            echo "::error::release archive is $size bytes, over the 512 KiB budget"
+            exit 1
+          fi
+          tar -xzf "$RUNNER_TEMP/ocaml-pq.tar.gz" -C "$RUNNER_TEMP"
+          for path in formal test/vectors test/wycheproof test/mldsa_vectors test/slhdsa_vectors; do
+            if [ -e "$RUNNER_TEMP/ocaml-pq/$path" ]; then
+              echo "::error::$path is in the release archive"
+              exit 1
+            fi
+          done
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@93303b622b2522e4411e295f9e77411a24912ac7 # v3.9.0
+        with:
+          ocaml-compiler: "5.4"
+      - name: Install test dependencies
+        run: opam install . --deps-only --with-test
+      - name: Build and test the packages from the archive
+        run: >-
+          opam exec -- sh -c 'cd "$RUNNER_TEMP/ocaml-pq" &&
+          dune build -p mlkem,mldsa,slhdsa @install @runtest'
 
   fuzz:
     name: Decoder fuzzing

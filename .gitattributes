@@ -1,3 +1,13 @@
 # Keep the Lean/TLA+ proofs out of GitHub's language statistics so the
 # repository is classified by its OCaml sources.
 formal/** linguist-documentation
+
+# GitHub's tag archives, which opam downloads, are `git archive` of the tag
+# and leave these paths out (#15). The package tests then check the
+# known-answer subset in test/kat. Name each directory itself: `dir/**` would
+# leave an empty directory behind, which the tests would take for a corpus.
+/formal export-ignore
+/test/vectors export-ignore
+/test/wycheproof export-ignore
+/test/mldsa_vectors export-ignore
+/test/slhdsa_vectors export-ignore

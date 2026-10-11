@@ -27,7 +27,11 @@ links against or depends on these projects at build or run time.
 | `test/mldsa_vectors` | [google/boringssl](https://github.com/google/boringssl) | Apache-2.0 (`test/mldsa_vectors/LICENSE`) |
 | `test/slhdsa_vectors` | [usnistgov/ACVP-Server](https://github.com/usnistgov/ACVP-Server) | NIST public-service notice (`test/slhdsa_vectors/LICENSE`) |
 | `test/wycheproof` | [C2SP/wycheproof](https://github.com/C2SP/wycheproof) | Apache-2.0 (`test/wycheproof/LICENSE`) |
+| `test/kat` | A subset of the four directories above | Apache-2.0 (`test/kat/mlkem/LICENSE`, `test/kat/mlkem/LICENSE.wycheproof`, `test/kat/mldsa/LICENSE`); NIST public-service notice (`test/kat/slhdsa/LICENSE`) |
 
 Each directory's `README.md` records the pinned upstream revision, the
 original file names, and, where the files are derived rather than copied
 verbatim, the checksums used to reproduce them.
+
+Release archives contain only `test/kat`. The other four directories are in
+the git repository.

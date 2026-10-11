@@ -52,12 +52,21 @@ let decode_hex input =
         ((hex_value input.[2 * index] lsl 4)
          lor hex_value input.[(2 * index) + 1]))
 
-let vector_path name =
-  let local = Filename.concat "slhdsa_vectors" name in
-  if Sys.file_exists local then local else Filename.concat "test/slhdsa_vectors" name
+(* Release archives leave the full corpus out (see .gitattributes) and carry
+   only the known-answer subset in kat/slhdsa. Directories are found from the
+   dune test directory or from the repository root. *)
+let directory name =
+  List.find_opt Sys.file_exists [ name; Filename.concat "test" name ]
 
-let read_keygen_vectors () =
-  let channel = open_in (vector_path "keygen.txt") in
+let kat = Option.value ~default:"kat/slhdsa" (directory "kat/slhdsa")
+
+(* The corpus is skipped only when its whole directory is absent; a file
+   missing from a present corpus still fails the test that reads it. *)
+let corpus name cases =
+  match directory name with Some dir -> cases dir | None -> []
+
+let read_keygen_vectors dir =
+  let channel = open_in (Filename.concat dir "keygen.txt") in
   let rec loop result =
     match input_line channel with
     | line ->
@@ -72,8 +81,8 @@ let read_keygen_vectors () =
   in
   loop []
 
-let read_siggen_vectors () =
-  let channel = open_in (vector_path "siggen.txt") in
+let read_siggen_vectors dir =
+  let channel = open_in (Filename.concat dir "siggen.txt") in
   let rec loop result =
     match input_line channel with
     | line -> begin
@@ -89,8 +98,8 @@ let read_siggen_vectors () =
   in
   loop []
 
-let read_rows name parse =
-  let channel = open_in (vector_path name) in
+let read_rows dir name parse =
+  let channel = open_in (Filename.concat dir name) in
   let rec loop line_number result =
     match input_line channel with
     | line ->
@@ -106,8 +115,8 @@ let read_rows name parse =
   | rows -> close_in channel; rows
   | exception exn -> close_in_noerr channel; raise exn
 
-let read_extra_siggen_vectors () =
-  let rows = read_rows "siggen-extra.txt" (function
+let read_extra_siggen_vectors dir =
+  let rows = read_rows dir "siggen-extra.txt" (function
     | [ name; id; mode; secret; message; context; randomness; signature ]
       when mode = "deterministic" || mode = "hedged" ->
         Some (name, id, mode, decode_hex secret, decode_hex message,
@@ -117,17 +126,17 @@ let read_extra_siggen_vectors () =
   Alcotest.(check int) "additional signing vector count" 24 (List.length rows);
   rows
 
-let read_sigver_vectors () =
-  let rows = read_rows "sigver.txt" (function
+let read_sigver_vectors dir ~count ~valid =
+  let rows = read_rows dir "sigver.txt" (function
     | [ name; id; public; message; context; signature; result ]
       when result = "valid" || result = "invalid" ->
         Some (name, id, decode_hex public, decode_hex message, decode_hex context,
               decode_hex signature, result = "valid")
     | _ -> None)
   in
-  Alcotest.(check int) "verification vector count" 168 (List.length rows);
-  Alcotest.(check int) "valid verification vector count" 24
-    (List.length (List.filter (fun (_, _, _, _, _, _, valid) -> valid) rows));
+  Alcotest.(check int) "verification vector count" count (List.length rows);
+  Alcotest.(check int) "valid verification vector count" valid
+    (List.length (List.filter (fun (_, _, _, _, _, _, accepted) -> accepted) rows));
   rows
 
 let result_ok = function
@@ -139,7 +148,7 @@ let variant name =
   | Some variant -> variant
   | None -> failwith ("unknown SLH-DSA variant " ^ name)
 
-let test_keygen () =
+let test_keygen dir () =
   List.iter
     (fun (name, seed, expected_secret, expected_public) ->
       let module M = (val variant name : VARIANT) in
@@ -162,7 +171,7 @@ let test_keygen () =
         (M.signing_key_to_octets generated);
       Alcotest.(check string) (name ^ " generated verification key") expected_public
         (M.verification_key_to_octets public))
-    (read_keygen_vectors ())
+    (read_keygen_vectors dir)
 
 let mutate value =
   let result = Bytes.of_string value in
@@ -195,7 +204,7 @@ let expect_invalid_argument label operation =
   | exception Invalid_argument _ -> ()
   | _ -> Alcotest.fail label
 
-let test_siggen () =
+let test_siggen dir () =
   List.iter
     (fun (name, expected_secret, message, context, expected_signature) ->
       let module M = (val variant name : VARIANT) in
@@ -266,10 +275,10 @@ let test_siggen () =
         (Char.chr (Char.code (Bytes.get inconsistent_secret last) lxor 1));
       expect_error (name ^ " accepted an inconsistent signing key")
         (M.signing_key_of_octets (Bytes.to_string inconsistent_secret)))
-    (read_siggen_vectors ())
+    (read_siggen_vectors dir)
 
-let test_extra_siggen name =
-  let rows = read_extra_siggen_vectors ()
+let test_extra_siggen dir name =
+  let rows = read_extra_siggen_vectors dir
     |> List.filter (fun (parameter, _, _, _, _, _, _, _) -> parameter = name)
   in
   Alcotest.(check int) (name ^ " additional signing vectors") 2 (List.length rows);
@@ -296,7 +305,7 @@ let test_extra_siggen name =
     Alcotest.(check bool) (label ^ " verifies") true
       (M.verify ~context public ~message signature)) rows
 
-let test_sigver () =
+let test_sigver dir ~count ~valid () =
   List.iter (fun (name, id, public, message, context, signature, expected) ->
     let module M = (val variant name : VARIANT) in
     let accepted =
@@ -305,7 +314,7 @@ let test_sigver () =
       | _ -> false
     in
     Alcotest.(check bool) (name ^ " ACVP verification " ^ id) expected accepted)
-    (read_sigver_vectors ())
+    (read_sigver_vectors dir ~count ~valid)
 
 let test_decoding () =
   List.iter (fun (name, (module M : VARIANT)) ->
@@ -389,20 +398,33 @@ let test_treehash_index () =
 
 let () =
   Alcotest.run "SLH-DSA"
-    [
-      ( "NIST ACVP",
+    ([
+      (* kat/slhdsa carries all of keygen.txt, so the corpus adds no key
+         generation answers of its own. *)
+      ( "known answers",
         [
-          Alcotest.test_case "key generation" `Slow test_keygen;
-          Alcotest.test_case "signature generation" `Slow test_siggen;
-          Alcotest.test_case "signature verification" `Slow test_sigver;
+          Alcotest.test_case "key generation" `Slow (test_keygen kat);
+          Alcotest.test_case "signature generation" `Slow (test_siggen kat);
+          Alcotest.test_case "signature verification" `Quick
+            (test_sigver kat ~count:2 ~valid:2);
         ] );
       "decoding", [ Alcotest.test_case "length checks" `Quick test_decoding ];
       "tree hash", [ Alcotest.test_case "leaf index bound" `Quick test_treehash_index ];
-      "additional NIST signing vectors",
-        List.map (fun (name, _) ->
-          Alcotest.test_case name `Slow (fun () -> test_extra_siggen name)) variants;
       "generated messages",
         List.map (fun name ->
           Alcotest.test_case name `Slow (fun () -> test_generated_messages name))
           [ "SLH-DSA-SHA2-128f"; "SLH-DSA-SHAKE-128f" ];
     ]
+    @ corpus "slhdsa_vectors" (fun dir ->
+        [
+          ( "NIST ACVP",
+            [
+              Alcotest.test_case "signature generation" `Slow (test_siggen dir);
+              Alcotest.test_case "signature verification" `Slow
+                (test_sigver dir ~count:168 ~valid:24);
+            ] );
+          "additional NIST signing vectors",
+            List.map (fun (name, _) ->
+              Alcotest.test_case name `Slow (fun () -> test_extra_siggen dir name))
+              variants;
+        ]))

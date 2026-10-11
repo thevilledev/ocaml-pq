@@ -50,14 +50,18 @@ let field name block =
   | Some value -> value
   | None -> Alcotest.failf "test vector is missing field %S" name
 
-let vector_path name =
-  let local = Filename.concat "vectors" name in
-  if Sys.file_exists local then local else Filename.concat "test/vectors" name
+(* Release archives leave the full corpora out (see .gitattributes) and carry
+   only the known-answer subset in kat/mlkem. Directories are found from the
+   dune test directory or from the repository root. *)
+let directory name =
+  List.find_opt Sys.file_exists [ name; Filename.concat "test" name ]
 
-let wycheproof_path name =
-  let local = Filename.concat "wycheproof/mlkem" name in
-  if Sys.file_exists local then local
-  else Filename.concat "test/wycheproof/mlkem" name
+let kat = Option.value ~default:"kat/mlkem" (directory "kat/mlkem")
+
+(* A corpus is skipped only when its whole directory is absent; a file missing
+   from a present corpus still fails the test that reads it. *)
+let corpus name cases =
+  match directory name with Some dir -> cases dir | None -> []
 
 let require_ok label = function
   | Ok value -> value
@@ -281,8 +285,8 @@ let test_rfc9861 () =
         [ 0x01; 0x7f ])
     [ ("turboshake128", turboshake128); ("turboshake256", turboshake256) ]
 
-let test_nist_keygen () =
-  read_blocks (vector_path "mlkem768-keygen.txt")
+let test_nist_keygen dir () =
+  read_blocks (Filename.concat dir "mlkem768-keygen.txt")
   |> List.iteri (fun index vector ->
       let d = decode_hex (field "d" vector) in
       let z = decode_hex (field "z" vector) in
@@ -294,8 +298,8 @@ let test_nist_keygen () =
       check_bytes (Printf.sprintf "keygen vector %d decapsulation key" index)
         expected_dk actual_dk)
 
-let test_encapsulation_vectors () =
-  read_blocks (vector_path "mlkem768-encap.txt")
+let test_encapsulation_vectors dir () =
+  read_blocks (Filename.concat dir "mlkem768-encap.txt")
   |> List.iteri (fun index vector ->
       let ek = decode_hex (field "public_key" vector) in
       let randomness = decode_hex (field "entropy" vector) in
@@ -315,8 +319,8 @@ let test_encapsulation_vectors () =
           end
       | result -> Alcotest.failf "encapsulation vector %d has result %S" index result)
 
-let test_decapsulation_vectors () =
-  read_blocks (vector_path "mlkem768-decap.txt")
+let test_decapsulation_vectors dir () =
+  read_blocks (Filename.concat dir "mlkem768-decap.txt")
   |> List.iteri (fun index vector ->
       let dk = decode_hex (field "private_key" vector) in
       let ciphertext = decode_hex (field "ciphertext" vector) in
@@ -335,8 +339,8 @@ let test_decapsulation_vectors () =
           end
       | result -> Alcotest.failf "decapsulation vector %d has result %S" index result)
 
-let test_seeded_vectors_512 () =
-  read_blocks (vector_path "mlkem512-seed-decap.txt")
+let test_seeded_vectors_512 dir () =
+  read_blocks (Filename.concat dir "mlkem512-seed-decap.txt")
   |> List.iteri (fun index vector ->
       let seed = decode_hex (field "seed" vector) in
       let ciphertext = decode_hex (field "ciphertext" vector) in
@@ -364,8 +368,8 @@ let test_seeded_vectors_512 () =
           end
       | result -> Alcotest.failf "ML-KEM-512 vector %d has result %S" index result)
 
-let test_encapsulation_vectors_512 () =
-  read_blocks (vector_path "mlkem512-encap.txt")
+let test_encapsulation_vectors_512 dir () =
+  read_blocks (Filename.concat dir "mlkem512-encap.txt")
   |> List.iteri (fun index vector ->
       let ek = decode_hex (field "public_key" vector) in
       let randomness = decode_hex (field "entropy" vector) in
@@ -386,8 +390,8 @@ let test_encapsulation_vectors_512 () =
           end
       | result -> Alcotest.failf "ML-KEM-512 encapsulation %d has result %S" index result)
 
-let test_decapsulation_vectors_512 () =
-  read_blocks (vector_path "mlkem512-decap.txt")
+let test_decapsulation_vectors_512 dir () =
+  read_blocks (Filename.concat dir "mlkem512-decap.txt")
   |> List.iteri (fun index vector ->
       let dk = decode_hex (field "private_key" vector) in
       let ciphertext = decode_hex (field "ciphertext" vector) in
@@ -406,8 +410,8 @@ let test_decapsulation_vectors_512 () =
           end
       | result -> Alcotest.failf "ML-KEM-512 decapsulation %d has result %S" index result)
 
-let test_nist_keygen_1024 () =
-  read_blocks (vector_path "mlkem1024-keygen.txt")
+let test_nist_keygen_1024 dir () =
+  read_blocks (Filename.concat dir "mlkem1024-keygen.txt")
   |> List.iteri (fun index vector ->
       let d = decode_hex (field "d" vector) in
       let z = decode_hex (field "z" vector) in
@@ -421,8 +425,8 @@ let test_nist_keygen_1024 () =
       check_bytes (Printf.sprintf "ML-KEM-1024 keygen %d decapsulation key" index)
         expected_dk actual_dk)
 
-let test_encapsulation_vectors_1024 () =
-  read_blocks (vector_path "mlkem1024-encap.txt")
+let test_encapsulation_vectors_1024 dir () =
+  read_blocks (Filename.concat dir "mlkem1024-encap.txt")
   |> List.iteri (fun index vector ->
       let ek = decode_hex (field "public_key" vector) in
       let randomness = decode_hex (field "entropy" vector) in
@@ -443,8 +447,8 @@ let test_encapsulation_vectors_1024 () =
           end
       | result -> Alcotest.failf "ML-KEM-1024 encapsulation %d has result %S" index result)
 
-let test_decapsulation_vectors_1024 () =
-  read_blocks (vector_path "mlkem1024-decap.txt")
+let test_decapsulation_vectors_1024 dir () =
+  read_blocks (Filename.concat dir "mlkem1024-decap.txt")
   |> List.iteri (fun index vector ->
       let dk = decode_hex (field "private_key" vector) in
       let ciphertext = decode_hex (field "ciphertext" vector) in
@@ -634,8 +638,8 @@ let run_wycheproof_seed_decapsulation (module M : WYCHEPROOF_VARIANT) path =
       | false, Ok _ ->
           Alcotest.failf "Wycheproof seed decapsulation %s was accepted" id)
 
-let run_wycheproof parameter (module M : WYCHEPROOF_VARIANT) =
-  let path suffix = wycheproof_path ("mlkem_" ^ parameter ^ suffix) in
+let run_wycheproof dir parameter (module M : WYCHEPROOF_VARIANT) =
+  let path suffix = Filename.concat dir ("mlkem_" ^ parameter ^ suffix) in
   run_wycheproof_keygen (module M) (path "_keygen_seed_test.txt");
   run_wycheproof_encapsulation (module M) (path "_encaps_test.txt");
   run_wycheproof_expanded_decapsulation (module M)
@@ -762,25 +766,51 @@ let () =
       [ Alcotest.test_case "Keccak known answers" `Quick test_keccak;
         Alcotest.test_case "public SHAKE known answers" `Quick test_fips202;
         Alcotest.test_case "public TurboSHAKE known answers" `Quick test_rfc9861 ];
+      "known answers",
+      [ Alcotest.test_case "ML-KEM-512" `Quick (fun () ->
+            test_seeded_vectors_512 kat ();
+            test_encapsulation_vectors_512 kat ();
+            test_decapsulation_vectors_512 kat ());
+        Alcotest.test_case "ML-KEM-768" `Quick (fun () ->
+            test_nist_keygen kat ();
+            test_encapsulation_vectors kat ();
+            test_decapsulation_vectors kat ());
+        Alcotest.test_case "ML-KEM-1024" `Quick (fun () ->
+            test_nist_keygen_1024 kat ();
+            test_encapsulation_vectors_1024 kat ();
+            test_decapsulation_vectors_1024 kat ()) ];
       "FIPS 203 - ML-KEM-512",
-      [ Alcotest.test_case "seed and decapsulation corpus" `Slow test_seeded_vectors_512;
-        Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_512;
-        Alcotest.test_case "expanded decapsulation corpus" `Slow
-          test_decapsulation_vectors_512;
-        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
-            run_wycheproof "512" (module W512)) ];
+      corpus "vectors" (fun dir ->
+          [ Alcotest.test_case "seed and decapsulation corpus" `Slow
+              (test_seeded_vectors_512 dir);
+            Alcotest.test_case "encapsulation corpus" `Slow
+              (test_encapsulation_vectors_512 dir);
+            Alcotest.test_case "expanded decapsulation corpus" `Slow
+              (test_decapsulation_vectors_512 dir) ])
+      @ corpus "wycheproof/mlkem" (fun dir ->
+          [ Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+                run_wycheproof dir "512" (module W512)) ]);
       "FIPS 203 - ML-KEM-768",
-      [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen;
-        Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors;
-        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors;
-        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
-            run_wycheproof "768" (module W768)) ];
+      corpus "vectors" (fun dir ->
+          [ Alcotest.test_case "NIST key generation" `Slow (test_nist_keygen dir);
+            Alcotest.test_case "encapsulation corpus" `Slow
+              (test_encapsulation_vectors dir);
+            Alcotest.test_case "decapsulation corpus" `Slow
+              (test_decapsulation_vectors dir) ])
+      @ corpus "wycheproof/mlkem" (fun dir ->
+          [ Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+                run_wycheproof dir "768" (module W768)) ]);
       "FIPS 203 - ML-KEM-1024",
-      [ Alcotest.test_case "NIST key generation" `Slow test_nist_keygen_1024;
-        Alcotest.test_case "encapsulation corpus" `Slow test_encapsulation_vectors_1024;
-        Alcotest.test_case "decapsulation corpus" `Slow test_decapsulation_vectors_1024;
-        Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
-            run_wycheproof "1024" (module W1024)) ];
+      corpus "vectors" (fun dir ->
+          [ Alcotest.test_case "NIST key generation" `Slow
+              (test_nist_keygen_1024 dir);
+            Alcotest.test_case "encapsulation corpus" `Slow
+              (test_encapsulation_vectors_1024 dir);
+            Alcotest.test_case "decapsulation corpus" `Slow
+              (test_decapsulation_vectors_1024 dir) ])
+      @ corpus "wycheproof/mlkem" (fun dir ->
+          [ Alcotest.test_case "Wycheproof corpus" `Slow (fun () ->
+                run_wycheproof dir "1024" (module W1024)) ]);
       "API",
       [ Alcotest.test_case "round trip" `Quick test_safe_api_roundtrip;
         Alcotest.test_case "ML-KEM-512 round trip and sizes" `Quick

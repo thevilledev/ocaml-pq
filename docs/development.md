@@ -32,12 +32,28 @@ limits, randomness callback contracts, and inconsistent private keys.
 Generated-message tests for SHA2-128f and SHAKE-128f cover empty messages,
 255-byte contexts, key serialization, and signature corruption.
 
+Release archives leave these corpora and `formal/` out, which keeps them
+under 512 KiB instead of about 21 MB. In their place, the package tests always
+check a known-answer subset in `test/kat`: about one case per parameter set
+and operation, copied verbatim from the corpora. A test skips a corpus only
+when the corpus's whole directory is missing, so a git checkout runs both the
+subset and the full corpora. After you change a corpus, regenerate the subset
+and commit the result:
+
+```sh
+sh test/kat/import.sh
+```
+
+CI fails when the subset is stale. It also builds the archive that GitHub
+serves for a tag, checks its size, and runs the package tests from it.
+
 Vector provenance and reproduction details are in the test directories:
 
 - [ML-KEM vectors](../test/vectors/README.md)
 - [ML-DSA vectors](../test/mldsa_vectors/README.md)
 - [SLH-DSA vectors](../test/slhdsa_vectors/README.md)
 - [Wycheproof corpus](../test/wycheproof/README.md)
+- [Known-answer subset](../test/kat/README.md)
 
 Bytecode runs the portable primitive tests and other tests that are practical
 to run there. The expensive SLH-DSA known-answer suite runs natively.
@@ -82,7 +98,7 @@ elan, a Java runtime and `tla2tools.jar`, but no OCaml. Run every check with:
 TLA2TOOLS=/path/to/tla2tools.jar sh formal/check.sh
 ```
 
-Dune ignores the `formal/` directory. The
+Dune ignores the `formal/` directory, and release archives leave it out. The
 [formal verification guide](../formal/README.md) describes what is proved and
 how to build a single area.
 
