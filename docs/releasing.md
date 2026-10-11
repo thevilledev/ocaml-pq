@@ -3,7 +3,7 @@
 [Back to the README](../README.md)
 
 The source tree and generated opam metadata use one release version. Release
-0.2.0 is recorded in `dune-project`, `mlkem.opam`, `mldsa.opam`,
+0.2.1 is recorded in `dune-project`, `mlkem.opam`, `mldsa.opam`,
 `slhdsa.opam`, and the [changelog](../CHANGES.md).
 
 Run all commands from the repository root. See the
@@ -13,7 +13,7 @@ Run all commands from the repository root. See the
 
 opam downloads each release from the archive that GitHub generates for its
 tag, such as
-`https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.0.tar.gz`.
+`https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.1.tar.gz`.
 GitHub builds that archive with `git archive`, so it leaves out the paths
 marked `export-ignore` in `.gitattributes`: the full test corpora and
 `formal/`. The package tests in the archive check the known-answer subset in
@@ -53,16 +53,16 @@ non-blocking lower-bounds result too: understand any failure and correct package
 constraints before publishing even though that job does not block ordinary
 pull requests.
 
-## Publish 0.2.0
+## Publish 0.2.1
 
 Commit every release file before creating the annotated tag; the archive
 contains only what the tagged commit holds. Push the tag, then check the
 size of the archive GitHub serves for it:
 
 ```sh
-git tag -a v0.2.0 -m "ocaml-pq 0.2.0"
-git push origin v0.2.0
-curl -fsSL https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.0.tar.gz | wc -c
+git tag -a v0.2.1 -m "ocaml-pq 0.2.1"
+git push origin v0.2.1
+curl -fsSL https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.1.tar.gz | wc -c
 ```
 
 Generate the opam-repository entries with opam-publish. It records the archive
@@ -70,16 +70,16 @@ URL and checksums from the tag archive. Review a dry run first, then publish,
 which opens the opam-repository pull request:
 
 ```sh
-opam publish -n https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.0.tar.gz
-opam publish https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.0.tar.gz
+opam publish -n https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.1.tar.gz
+opam publish https://github.com/thevilledev/ocaml-pq/archive/refs/tags/v0.2.1.tar.gz
 ```
 
 Review all three generated entries:
 
-- `packages/mlkem/mlkem.0.2.0/opam`
-- `packages/mldsa/mldsa.0.2.0/opam`
-- `packages/slhdsa/slhdsa.0.2.0/opam`
+- `packages/mlkem/mlkem.0.2.1/opam`
+- `packages/mldsa/mldsa.0.2.1/opam`
+- `packages/slhdsa/slhdsa.0.2.1/opam`
 
 Wait for opam-repository CI and maintainer review before announcing the
 release. Never move a published tag or replace an archive behind a published
-0.2.0 URL; publish a new patch release for any correction.
+0.2.1 URL; publish a new patch release for any correction.

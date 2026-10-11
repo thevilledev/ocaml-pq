@@ -1,6 +1,9 @@
 # Changes
 
-## Unreleased
+## 0.2.1 (2026-10-11)
+
+The libraries are unchanged from 0.2.0; this release only changes what the
+source archive contains.
 
 - Shrink release archives from about 21 MB to about 0.3 MB (#15). GitHub's tag
   archives, which opam downloads, now leave out the test vector corpora and
